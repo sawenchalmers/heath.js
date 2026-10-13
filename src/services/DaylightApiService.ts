@@ -273,7 +273,6 @@ class DaylightApiService {
     }
 
     const result = await this.getResult(queued.study_id, runOptions.signal);
-    console.log(result)
     this.validateResultArrays(result, request);
 
     const points =
