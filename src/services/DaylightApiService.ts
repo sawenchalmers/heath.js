@@ -273,6 +273,7 @@ class DaylightApiService {
     }
 
     const result = await this.getResult(queued.study_id, runOptions.signal);
+    console.log(result)
     this.validateResultArrays(result, request);
 
     const points =
@@ -467,6 +468,7 @@ class DaylightApiService {
       }
     }
 
+    // From what I can tell in the API, result never includes `sensor_grids`...?
     if (request.room.simulate_all_floors && resultLength > 0 && !result.sensor_grids?.length) {
       throw new Error('Daylight API did not return sensor grid ranges for an all-floor study.');
     }
