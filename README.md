@@ -1,4 +1,4 @@
-# 3JS Web Editor for SBE Education
+# heath.js
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -7,14 +7,14 @@
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Rhino3dm](https://img.shields.io/badge/Rhino3dm-3D%20Geometry-801010?style=flat-square)](https://www.npmjs.com/package/rhino3dm)
-[![GitHub stars](https://img.shields.io/github/stars/SB-Chalmers/threejsEditor?style=flat-square)](https://github.com/SB-Chalmers/threejsEditor/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/SB-Chalmers/threejsEditor?style=flat-square)](https://github.com/SB-Chalmers/threejsEditor/network/members)
-[![GitHub issues](https://img.shields.io/github/issues/SB-Chalmers/threejsEditor?style=flat-square)](https://github.com/SB-Chalmers/threejsEditor/issues)
-[![GitHub license](https://img.shields.io/github/license/SB-Chalmers/threejsEditor?style=flat-square)](https://github.com/SB-Chalmers/threejsEditor/blob/main/LICENSE)
-[![GitHub last commit](https://img.shields.io/github/last-commit/SB-Chalmers/threejsEditor?style=flat-square)](https://github.com/SB-Chalmers/threejsEditor/commits/main)
+[![GitHub stars](https://img.shields.io/github/stars/sawenchalmers/heath.js?style=flat-square)](https://github.com/sawenchalmers/heath.js/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/sawenchalmers/heath.js?style=flat-square)](https://github.com/sawenchalmers/heath.js/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/sawenchalmers/heath.js?style=flat-square)](https://github.com/sawenchalmers/heath.js/issues)
+[![GitHub license](https://img.shields.io/github/license/sawenchalmers/heath.js?style=flat-square)](https://github.com/sawenchalmers/heath.js/blob/main/LICENSE)
+[![GitHub last commit](https://img.shields.io/github/last-commit/sawenchalmers/heath.js?style=flat-square)](https://github.com/sawenchalmers/heath.js/commits/main)
 
 This is a web-based 3D building design tool developed for teaching and exploring
-computational sustainable design and urban building energy modelling.
+computational sustainable design and building sustainability assessment in an urban context.
 
 
 The tool allows users to create and modify simple building models, work with
@@ -29,7 +29,7 @@ design exploration and Rhino3dm used for working with `.3dm` geometry.
 ## Features
 
 ### 3D Building Design
-![alt text](image.png)
+<!-- ![alt text](image.png) -->
 - Draw building footprints directly in the 3D view
 - Extrude footprints into buildings
 - Change the number and height of floors
@@ -38,7 +38,7 @@ design exploration and Rhino3dm used for working with `.3dm` geometry.
 - Edit buildings interactively in the scene
 
 ### 3D View
-![alt text](image-1.png)
+<!-- ![alt text](image-1.png) -->
 - Real-time Three.js rendering
 - Perspective and orthographic camera views
 - Camera navigation and controls
@@ -49,7 +49,7 @@ design exploration and Rhino3dm used for working with `.3dm` geometry.
 
 ### Context Models
 
-HEATH can be used together with surrounding building geometry to provide
+Heath can be used together with surrounding building geometry to provide
 context for the design.
 
 - Import `.3dm` models
@@ -65,7 +65,7 @@ This is intended primarily as a visual and educational tool for investigating
 orientation, massing and surrounding context.
 
 ### Design Exploration
-![alt text](image-2.png)
+<!-- ![alt text](image-2.png) -->
 The design exploration tools allow different building configurations to be
 created and compared.
 
@@ -87,8 +87,8 @@ D3.js is used for the graph visualisation.
 ### Installation
 
 ```bash
-git clone https://github.com/SB-Chalmers/threejsEditor.git
-cd threejsEditor
+git clone https://github.com/sawenchalmers/heath.js.git
+cd heath.js
 npm install
 ````
 
@@ -168,7 +168,7 @@ npm run lint
 | `Ctrl + Shift + D`     | Open theme debugger |
 
 ## Creating a Building
-![alt text](image-3.png)
+<!-- ![alt text](image-3.png) -->
 1. Select the drawing tool.
 2. Click on the ground plane to place the building corners.
 3. Right-click to finish the footprint.
@@ -228,23 +228,23 @@ The main parts of the application are organised roughly as follows:
 ## Project Team
 
 **Alexander Hollberg**
-Course Examiner / Principal Investigator
+Course Examiner / Product owner \(heath.js\)
 
 **Toivo Säwén**
-Course Incharge / Developer, HEATH 1.0
+Course developer / Developer \(Heath UI, heath.js\)
 
 **Isac Mjörnell**
-Developer
+Developer \(Heath UI\)
 
 **Jieming Yan**
-Testing
+Testing \(Heath UI\)
 
 **Sanjay Somanath**
-HEATH Web Tool Developer
+Developer \(threejsEditor\)
 
-## About HEATH
+## About Heath
 
-HEATH is being developed as part of teaching and research around sustainable
+Heath is being developed as part of teaching and research around sustainable
 built environments and computational design.
 
 The web tool is intended to make it easier for students to experiment with
@@ -253,6 +253,31 @@ environmental performance.
 
 The project is under active development, so parts of the application and
 documentation may change.
+
+## Development History
+
+heath.js builds on several earlier tools developed for teaching at Chalmers:
+
+1. **BeDOT (2019).** The Building Early-stage Design Optimization Tool was
+   developed by Chalmers and Bengt Dahlgren. It is a Python-based set of
+   tools for Rhino/Grasshopper that estimates building energy performance in
+   early design stages, based on ISO 13790. BeDOT was used in the course
+   ARK415 at Chalmers. See
+   [Energy Performance Modelling: Introducing the Building Early-stage Design Optimization Tool (BeDOT)](https://research.chalmers.se/publication/527706),
+   Building Simulation 2019.
+2. **ACE405_analysis_script (2023–2024).** Toivo Säwén developed this
+   analysis script for use in the course ACE405 at Chalmers.
+3. **Heath UI (Grasshopper plugin, 2024 onwards).** The first version of Heath
+   was a Grasshopper plugin for Rhino. It provides a user interface for life
+   cycle building performance assessment and is developed in
+   [sawenchalmers/heath](https://github.com/sawenchalmers/heath).
+4. **threejsEditor (2025–2026).** Development of a browser-based version inspired by Heath UI
+   built with React, TypeScript and Three.js started in June 2025, in
+   [SB-Chalmers/threejsEditor](https://github.com/SB-Chalmers/threejsEditor).
+5. **heath.js (2026 onwards).** In October 2026 the web tool was forked to
+   [sawenchalmers/heath.js](https://github.com/sawenchalmers/heath.js), where
+   development continues. The full commit history of the web tool has been
+   kept.
 
 ## License
 
