@@ -178,11 +178,17 @@ export const buildHoneybeeSubRectangles = (
   }));
 };
 
+/**
+ * Place windows on every wall of every floor, following Honeybee's layout.
+ * `sharedFloorsByEdge[i]` lists the floors whose wall along edge i is shared with a neighbour; those walls
+ * get no windows. Edges are counted after the footprint is put in Honeybee counter-clockwise order.
+ */
 export const buildFacadeLayout = (
   footprint: Point3D[],
   floors: number,
   floorHeight: number,
-  parameters: FacadeParameters
+  parameters: FacadeParameters,
+  sharedFloorsByEdge: readonly (readonly number[])[] = []
 ): FacadeLayoutResult => {
   const orderedFootprint = ensureHoneybeeCounterClockwise(footprint);
   const requestedWwr = clampWwr(parameters.wwr);
@@ -199,7 +205,7 @@ export const buildFacadeLayout = (
       const deltaX = end.x - start.x;
       const deltaZ = end.z - start.z;
       const edgeLength = Math.hypot(deltaX, deltaZ);
-      if (edgeLength <= 1e-9) {
+      if (edgeLength <= 1e-9 || sharedFloorsByEdge[edgeIndex]?.includes(floorIndex + 1)) {
         continue;
       }
 

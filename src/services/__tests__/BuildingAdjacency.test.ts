@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeBuildingAdjacency, computeWorkspaceAdjacency, type AdjacencyInput, type BuildingAdjacency } from '../BuildingAdjacency';
+import { computeBuildingAdjacency, computeAllBuildingAdjacency, type AdjacencyInput, type BuildingAdjacency } from '../BuildingAdjacency';
 import { calculateFootprintArea } from '../../utils/buildingMetrics';
 import { rotateFootprint } from '../../utils/footprintInteraction';
 
@@ -26,7 +26,7 @@ describe('building adjacency', () => {
 
   it('shares a full edge between two equally tall buildings, on both sides', () => {
     const neighbour = building('east', box(10, 0, 20, 10));
-    const all = computeWorkspaceAdjacency([base, neighbour]);
+    const all = computeAllBuildingAdjacency([base, neighbour]);
     expect(sharedEdges(all.get('base')!)).toEqual([{ from: [10, 0], to: [10, 10], floors: [1, 2, 3], neighbours: ['east'] }]);
     expect(sharedEdges(all.get('east')!)).toEqual([{ from: [10, 10], to: [10, 0], floors: [1, 2, 3], neighbours: ['base'] }]);
     expect(all.get('base')!.footprint).toHaveLength(4);

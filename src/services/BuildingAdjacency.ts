@@ -113,5 +113,5 @@ export const computeBuildingAdjacency = (building: AdjacencyInput, others: reado
 };
 
 /** Compute adjacency for every building in a workspace, keyed by building id. */
-export const computeWorkspaceAdjacency = (buildings: readonly AdjacencyInput[]): Map<string, BuildingAdjacency> =>
+export const computeAllBuildingAdjacency = (buildings: readonly AdjacencyInput[]): Map<string, BuildingAdjacency> =>
   new Map(buildings.map(building => [building.id, computeBuildingAdjacency(building, buildings)]));

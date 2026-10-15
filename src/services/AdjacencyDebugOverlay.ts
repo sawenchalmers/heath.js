@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { BuildingModel } from '../types/building';
-import { computeWorkspaceAdjacency } from './BuildingAdjacency';
+import { computeAllBuildingAdjacency } from './BuildingAdjacency';
 
 // Temporary debug aid for #13: marks shared walls on each building's own roof, so it is clear
 // which building registered the adjacency and for which floors.
@@ -40,7 +40,7 @@ export const buildAdjacencyDebugOverlay = (buildings: readonly BuildingModel[]):
   const group = new THREE.Group();
   group.name = 'adjacency-debug-overlay';
   const material = new THREE.MeshBasicMaterial({ color: 0xd946ef, side: THREE.DoubleSide });
-  const adjacencyById = computeWorkspaceAdjacency(buildings);
+  const adjacencyById = computeAllBuildingAdjacency(buildings);
 
   for (const building of buildings) {
     const { footprint, edges } = adjacencyById.get(building.id)!;

@@ -102,6 +102,19 @@ describe('Honeybee-faithful facade geometry', () => {
       .toBeCloseTo(perimeter * 2.5 * 0.95, 8);
   });
 
+  it('leaves out windows on shared walls, only on the shared floors', () => {
+    const parameters = { ...DEFAULT_FACADE_PARAMETERS, wwr: 0.4 };
+    const all = buildFacadeLayout(rectangle, 2, 3, parameters).apertures;
+    const shared = buildFacadeLayout(rectangle, 2, 3, parameters, [[], [1], [], []]).apertures;
+    const onEdge = (apertures: typeof all, edge: number, floor: number) =>
+      apertures.filter(aperture => aperture.edgeIndex === edge && aperture.floorNumber === floor).length;
+
+    expect(onEdge(all, 1, 1)).toBeGreaterThan(0);
+    expect(onEdge(shared, 1, 1)).toBe(0);
+    expect(onEdge(shared, 1, 2)).toBe(onEdge(all, 1, 2));
+    expect(shared).toHaveLength(all.length - onEdge(all, 1, 1));
+  });
+
   it('defaults to single-row apertures (no stacked windows) for realistic streetscape rhythm', () => {
     const layout = buildFacadeLayout(rectangle, 1, 3, {
       ...DEFAULT_FACADE_PARAMETERS,

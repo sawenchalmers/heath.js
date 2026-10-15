@@ -132,6 +132,44 @@ describe('WindowService facade overlays', () => {
   });
 });
 
+describe('windows on shared walls', () => {
+  /** Number of apertures a building has on its own, with no neighbours. */
+  const aloneCount = (b: BuildingData) =>
+    buildFacadeLayout(b.points, b.floors, b.floorHeight, getBuildingFacadeParameters(b)).apertures.length;
+  /** Number of apertures on the wall along x = 10 for a 10 × 8 building with the given floors. */
+  const sharedWallCount = (floors: number[]) =>
+    buildFacadeLayout(building().points, 2, 3, getBuildingFacadeParameters(building()))
+      .apertures.filter(aperture => aperture.edgeIndex === 1 && floors.includes(aperture.floorNumber)).length;
+
+  it('removes windows on the shared wall of both buildings, and restores them when they move apart', () => {
+    const service = new WindowService(new THREE.Scene(), config);
+    const left = { ...building(), id: 'left', floors: 2 };
+    const right = { ...building(), id: 'right', floors: 2, points: building().points.map(p => ({ ...p, x: p.x + 10 })) };
+    service.addBuildingWindows(left, config);
+    service.addBuildingWindows(right, config);
+
+    const removedPerBuilding = sharedWallCount([1, 2]);
+    expect(removedPerBuilding).toBeGreaterThan(0);
+    expect(service.getBuildingWindowCount('left')).toBe(aloneCount(left) - removedPerBuilding);
+    expect(service.getBuildingWindowCount('right')).toBe(aloneCount(right) - removedPerBuilding);
+
+    service.updateBuildingWindows({ ...right, points: right.points.map(p => ({ ...p, x: p.x + 5 })) }, config);
+    expect(service.getBuildingWindowCount('left')).toBe(aloneCount(left));
+    service.dispose();
+  });
+
+  it('keeps windows on the floors above a lower neighbour', () => {
+    const service = new WindowService(new THREE.Scene(), config);
+    const tall = { ...building(), id: 'tall', floors: 2 };
+    const low = { ...building(), id: 'low', floors: 1, points: building().points.map(p => ({ ...p, x: p.x + 10 })) };
+    service.addBuildingWindows(tall, config);
+    service.addBuildingWindows(low, config);
+
+    expect(service.getBuildingWindowCount('tall')).toBe(aloneCount(tall) - sharedWallCount([1]));
+    service.dispose();
+  });
+});
+
 describe('per-building facade focus', () => {
   it('ghosts only neighboring facade batches and preserves them through updates and restoration', async () => {
     const { SceneAppearanceManager } = await import('../../core/SceneAppearanceManager');
