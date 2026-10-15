@@ -60,7 +60,85 @@ const segmentsIntersect = (a: Point3D, b: Point3D, c: Point3D, d: Point3D) => {
     (Math.abs(o4) <= 1e-8 && onSegment(c, d, b));
 };
 
-export const validateFootprint = (points: readonly Point3D[]): string | null => {
+/** Distance in metres within which footprint boundaries count as touching rather than overlapping. */
+const FOOTPRINT_TOUCH_TOLERANCE = 1e-6;
+
+/** Shortest plan distance from a point to the segment a→b. */
+const distanceFromPointToSegment = (point: Point3D, a: Point3D, b: Point3D) => {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  const lengthSq = dx * dx + dz * dz;
+  const t = lengthSq > 0 ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.z - a.z) * dz) / lengthSq)) : 0;
+  return Math.hypot(point.x - (a.x + t * dx), point.z - (a.z + t * dz));
+};
+
+/** Whether a point is inside a polygon, on its boundary, or outside it. */
+const locatePointInPolygon = (point: Point3D, polygon: readonly Point3D[]): 'inside' | 'boundary' | 'outside' => {
+  let inside = false;
+  for (let i = 0; i < polygon.length; i += 1) {
+    const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+    if (distanceFromPointToSegment(point, a, b) <= FOOTPRINT_TOUCH_TOLERANCE) return 'boundary';
+    if ((a.z > point.z) !== (b.z > point.z) && point.x < (b.x - a.x) * (point.z - a.z) / (b.z - a.z) + a.x) inside = !inside;
+  }
+  return inside ? 'inside' : 'outside';
+};
+
+/** Which side of the line a→b point c lies on: -1, 1, or 0 when it is on the line (within tolerance). */
+const sideOfLine = (a: Point3D, b: Point3D, c: Point3D) => {
+  const distance = orientation(a, b, c) / Math.hypot(b.x - a.x, b.z - a.z);
+  return Math.abs(distance) <= FOOTPRINT_TOUCH_TOLERANCE ? 0 : Math.sign(distance);
+};
+
+/** True when segments a→b and c→d cross through each other's interiors. Segments that only touch or run along each other do not cross. */
+const segmentsCrossProperly = (a: Point3D, b: Point3D, c: Point3D, d: Point3D) =>
+  sideOfLine(a, b, c) * sideOfLine(a, b, d) < 0 && sideOfLine(c, d, a) * sideOfLine(c, d, b) < 0;
+
+/**
+ * Split each edge of `polygon` at the vertices of `other` that lie on it, and locate each piece
+ * relative to `other`. Without proper crossings, every piece lies entirely inside, on or outside `other`.
+ */
+const locateEdgePiecesInPolygon = (polygon: readonly Point3D[], other: readonly Point3D[]) => polygon.flatMap((start, i) => {
+  const end = polygon[(i + 1) % polygon.length];
+  const dx = end.x - start.x, dz = end.z - start.z;
+  const lengthSq = dx * dx + dz * dz;
+  const splits = [0, 1, ...other
+    .filter(vertex => distanceFromPointToSegment(vertex, start, end) <= FOOTPRINT_TOUCH_TOLERANCE)
+    .map(vertex => ((vertex.x - start.x) * dx + (vertex.z - start.z) * dz) / lengthSq)]
+    .map(t => Math.max(0, Math.min(1, t)))
+    .sort((p, q) => p - q);
+  return splits.slice(1)
+    .map((t, j) => [splits[j], t])
+    .filter(([t0, t1]) => (t1 - t0) * Math.sqrt(lengthSq) > FOOTPRINT_TOUCH_TOLERANCE)
+    .map(([t0, t1]) => locatePointInPolygon({ x: start.x + dx * (t0 + t1) / 2, y: 0, z: start.z + dz * (t0 + t1) / 2 }, other));
+});
+
+/** True when the bounding boxes of two footprints share area (touching boxes do not). */
+const boundingBoxesOverlap = (a: readonly Point3D[], b: readonly Point3D[]) => {
+  const box = (polygon: readonly Point3D[]) => ({
+    minX: Math.min(...polygon.map(p => p.x)), maxX: Math.max(...polygon.map(p => p.x)),
+    minZ: Math.min(...polygon.map(p => p.z)), maxZ: Math.max(...polygon.map(p => p.z)),
+  });
+  const boxA = box(a), boxB = box(b);
+  return boxA.maxX > boxB.minX + FOOTPRINT_TOUCH_TOLERANCE && boxB.maxX > boxA.minX + FOOTPRINT_TOUCH_TOLERANCE &&
+    boxA.maxZ > boxB.minZ + FOOTPRINT_TOUCH_TOLERANCE && boxB.maxZ > boxA.minZ + FOOTPRINT_TOUCH_TOLERANCE;
+};
+
+/** True when two footprints share interior area. Footprints that only touch along edges or at vertices do not overlap. */
+export const footprintsOverlap = (a: readonly Point3D[], b: readonly Point3D[]): boolean => {
+  if (!boundingBoxesOverlap(a, b)) return false;
+
+  const edgesCross = a.some((aStart, i) => b.some((bStart, j) =>
+    segmentsCrossProperly(aStart, a[(i + 1) % a.length], bStart, b[(j + 1) % b.length])));
+  if (edgesCross) return true;
+
+  const aPieces = locateEdgePiecesInPolygon(a, b);
+  if (aPieces.includes('inside') || locateEdgePiecesInPolygon(b, a).includes('inside')) return true;
+  // With no boundary inside the other footprint, the footprints only overlap if they coincide.
+  return aPieces.every(piece => piece === 'boundary');
+};
+
+const MIN_FOOTPRINT_AREA = 0.01;
+/** Return an error message if a footprint is invalid on its own or overlaps any of `otherFootprints`, otherwise null. */
+export const validateFootprint = (points: readonly Point3D[], otherFootprints: readonly (readonly Point3D[])[] = []): string | null => {
   if (points.length < 3) return 'A footprint needs at least three vertices.';
   if (points.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y) || !Number.isFinite(point.z))) {
     return 'Footprint coordinates must be finite numbers.';
@@ -80,6 +158,9 @@ export const validateFootprint = (points: readonly Point3D[]): string | null => 
       }
     }
   }
-  if (calculateFootprintArea(points) < 0.01) return 'Footprint area must be at least 0.01 m².';
+  if (calculateFootprintArea(points) < MIN_FOOTPRINT_AREA) return `Footprint area must be at least ${MIN_FOOTPRINT_AREA} m².`;
+  if (otherFootprints.some(other => footprintsOverlap(points, other))) {
+    return 'Footprints cannot overlap another building. They may only touch.';
+  }
   return null;
 };

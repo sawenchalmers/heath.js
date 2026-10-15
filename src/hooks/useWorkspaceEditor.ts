@@ -76,6 +76,7 @@ export function useWorkspaceEditor(options: Options) {
     return p ? { x: p.x, y: 0, z: p.z } : null;
   };
   const points = () => optionsRef.current.edit.getDraft()?.points ?? [];
+  const otherFootprints = () => optionsRef.current.getBuildings().filter(b => b.id !== selectedId.current).map(b => b.points);
   const begin = () => {
     if (before.current || !selectedId.current) return;
     before.current = optionsRef.current.captureSnapshot();
@@ -129,7 +130,7 @@ export function useWorkspaceEditor(options: Options) {
     if (tool === 'polygon' || tool === 'rectangle' || tool === 'reshape') view(true);
   };
   const create = (candidate: Point3D[]) => {
-    const error = validateFootprint(candidate) ?? (orthoRef.current && stateRef.current.tool === 'polygon' && !isOrthogonalFootprint(candidate) ? 'Align the final point with the start to close at 90°.' : null);
+    const error = validateFootprint(candidate, otherFootprints()) ?? (orthoRef.current && stateRef.current.tool === 'polygon' && !isOrthogonalFootprint(candidate) ? 'Align the final point with the start to close at 90°.' : null);
     if (error) { publish({ error }); return; }
     const o = optionsRef.current;
     const snapshot = o.captureSnapshot();
@@ -145,13 +146,13 @@ export function useWorkspaceEditor(options: Options) {
     create(s.tool === 'rectangle' && s.points[0] && s.cursor ? rectangle(s.points[0], s.cursor) : s.points);
   };
   const preview = (candidate: Point3D[]) => {
-    const error = validateFootprint(candidate);
+    const error = validateFootprint(candidate, otherFootprints());
     if (gesture.current) { gesture.current.candidate = candidate; gesture.current.invalid = error; }
     if (!error) optionsRef.current.edit.updateFootprint(candidate);
     publish({ error });
   };
   const applyPoints = (candidate: Point3D[], label: string) => {
-    const error = validateFootprint(candidate);
+    const error = validateFootprint(candidate, otherFootprints());
     if (error) { publish({ error }); return; }
     begin(); optionsRef.current.edit.updateFootprint(candidate); commit(label); publish({ error: null });
   };
@@ -262,7 +263,7 @@ export function useWorkspaceEditor(options: Options) {
     } else if (s.tool === 'polygon' || s.tool === 'rectangle') {
       const cursor = snapPoint(raw, event, s.points[s.points.length - 1]);
       const candidate = s.tool === 'rectangle' && s.points[0] ? rectangle(s.points[0], cursor) : [...s.points, cursor];
-      publish({ cursor, insertion: null, error: candidate.length >= 3 && stateRef.current.snap?.kind !== 'Close' ? validateFootprint(candidate) : null });
+      publish({ cursor, insertion: null, error: candidate.length >= 3 && stateRef.current.snap?.kind !== 'Close' ? validateFootprint(candidate, otherFootprints()) : null });
     } else if (!g && s.tool === 'reshape') {
       const rect = optionsRef.current.containerRef.current!.getBoundingClientRect();
       const mouse = { x: event.clientX - rect.left, y: event.clientY - rect.top };
