@@ -17,6 +17,7 @@ import { ImportConfigDialog } from './dialogs/ImportConfigDialog';
 import { DaylightResultsDialog } from './dialogs/DaylightResultsDialog';
 import { Tabs, TabContent } from './ui/Tabs';
 import { AppVersionBadge } from './ui/AppVersionBadge';
+import { buildAdjacencyDebugOverlay, disposeAdjacencyDebugOverlay } from '../services/AdjacencyDebugOverlay';
 import { WeatherAndLocationTab } from './WeatherAndLocationTab';
 import { BuildingConfig, BuildingData, BuildingModel, DEFAULT_BUILDING_COLOR } from '../types/building';
 import type { CameraType, CameraView } from '../core/ThreeJSCore';
@@ -132,6 +133,14 @@ export const SimpleBuildingCreator: React.FC = () => {
     hideBuildingTooltip
   } = useBuildingManager(scene, camera as THREE.PerspectiveCamera | null, windowService);
   selectedBuildingRef.current = selectedBuilding;
+
+  // Debug aid (#13): mark shared walls on the dev server. Off by default; start with VITE_DEBUG_ADJACENCY=true to enable.
+  React.useEffect(() => {
+    if (!import.meta.env.DEV || import.meta.env.VITE_DEBUG_ADJACENCY !== 'true' || !scene) return;
+    const overlay = buildAdjacencyDebugOverlay(buildings);
+    scene.add(overlay);
+    return () => disposeAdjacencyDebugOverlay(overlay);
+  }, [scene, buildings]);
 
   const buildingEdit = useBuildingEditSession({
     workspaceRevision,
