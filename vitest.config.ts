@@ -1,9 +1,10 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { buildInfoPlugin } from './buildInfoPlugin';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), buildInfoPlugin()],
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

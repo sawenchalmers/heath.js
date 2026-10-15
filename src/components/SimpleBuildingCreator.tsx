@@ -16,6 +16,7 @@ import { SaveConfigurationDialog } from './dialogs/SaveConfigurationDialog';
 import { ImportConfigDialog } from './dialogs/ImportConfigDialog';
 import { DaylightResultsDialog } from './dialogs/DaylightResultsDialog';
 import { Tabs, TabContent } from './ui/Tabs';
+import { AppVersionBadge } from './ui/AppVersionBadge';
 import { WeatherAndLocationTab } from './WeatherAndLocationTab';
 import { BuildingConfig, BuildingData, BuildingModel, DEFAULT_BUILDING_COLOR } from '../types/building';
 import type { CameraType, CameraView } from '../core/ThreeJSCore';
@@ -806,6 +807,7 @@ export const SimpleBuildingCreator: React.FC = () => {
         tabs={tabs} 
         activeTab={activeTab} 
         onTabChange={handleTabChange}
+        trailing={<AppVersionBadge />}
       />
       
       <TabContent className="relative">

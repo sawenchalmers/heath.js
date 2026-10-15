@@ -11,11 +11,13 @@ interface TabsProps {
   activeTab: string;
   onTabChange: (tabId: string) => void;
   className?: string;
+  /** Content shown at the right end of the bar. */
+  trailing?: React.ReactNode;
 }
 
-export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onTabChange, className = '' }) => {
+export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onTabChange, className = '', trailing }) => {
   return (
-    <div className={`relative z-50 h-12 shrink-0 bg-white border-b border-slate-200 ${className}`}>
+    <div className={`relative z-50 flex h-12 shrink-0 items-stretch justify-between bg-white border-b border-slate-200 ${className}`}>
       <div className="flex h-full space-x-1 px-3">
         {tabs.map((tab) => (
           <button
@@ -35,6 +37,7 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onTabChange, classN
           </button>
         ))}
       </div>
+      {trailing && <div className="flex items-center px-3">{trailing}</div>}
     </div>
   );
 };
