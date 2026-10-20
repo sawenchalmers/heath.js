@@ -1,4 +1,5 @@
 import { BuildingModel } from './building';
+import type { AdjacencyInput } from '../services/BuildingAdjacency';
 
 export type DaylightStudyStatus = 'queued' | 'running' | 'complete' | 'failed';
 
@@ -21,6 +22,8 @@ export interface DaylightRoomInput {
   selected_floor_number: number;
   simulate_all_floors: boolean;
   wwr?: number;
+  /** Window-to-wall ratio per footprint edge, overriding `wwr`. Only sent when a wall is shared on the simulated floor. */
+  wwr_by_edge?: number[];
   window_width: number;
   window_height: number;
   window_spacing: number;
@@ -161,6 +164,8 @@ export interface DaylightBuildRequestOptions {
   selected_floor_number?: number;
   simulate_all_floors?: boolean;
   context_buildings?: DaylightContextBuildingInput[];
+  /** Other buildings, used to find walls shared with the simulated building. */
+  neighbours?: readonly AdjacencyInput[];
 }
 
 export interface DaylightRunOptions {

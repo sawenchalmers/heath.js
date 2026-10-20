@@ -41,6 +41,7 @@ export class SimulationCoordinator {
         context_buildings: buildings
           .filter(context => context.id !== building.id)
           .map(context => daylightApiService.buildContextBuilding(context)),
+        neighbours: buildings,
       },
       { signal, onStatus: status => onStatus?.(building, status) },
     )));

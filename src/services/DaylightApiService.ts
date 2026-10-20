@@ -1,5 +1,6 @@
-import { BuildingModel } from '../types/building';
+import { BuildingModel, Point3D } from '../types/building';
 import { ensureHoneybeeCounterClockwise, getBuildingFacadeParameters } from './FacadeGeometry';
+import { buildSimulationFootprint, reverseEdgeValues, simplifyFootprint, wwrByEdgeForFloor } from './SimulationFootprint';
 import { calculateSignedArea } from '../utils/geometry';
 import {
   DaylightApiError,
@@ -80,8 +81,12 @@ class DaylightApiService {
       Math.max(1, building.floors)
     );
 
-    const footprint = this.buildValidatedFootprint(building);
+    // Same simplified, split footprint as the window preview, so edge n is the same wall in both.
+    const simulationFootprint = buildSimulationFootprint(building, options.neighbours ?? []);
+    const footprint = this.toValidatedCoordinates(simulationFootprint.footprint);
     const facade = getBuildingFacadeParameters(building);
+    // Only send per-wall ratios when a wall is shared on this floor, so other requests stay unchanged.
+    const hasSharedWall = simulationFootprint.edges.some(edge => edge.sharedFloors.includes(selectedFloor));
 
     return {
       room: {
@@ -92,6 +97,7 @@ class DaylightApiService {
         selected_floor_number: selectedFloor,
         simulate_all_floors: options.simulate_all_floors ?? true,
         wwr: facade.wwr,
+        ...(hasSharedWall ? { wwr_by_edge: wwrByEdgeForFloor(simulationFootprint, facade.wwr, selectedFloor) } : {}),
         window_width: facade.windowWidth,
         window_height: facade.windowHeight,
         window_spacing: facade.windowSpacing,
@@ -113,37 +119,15 @@ class DaylightApiService {
 
   buildContextBuilding(building: BuildingModel): DaylightContextBuildingInput {
     return {
-      footprint_coordinates: this.buildValidatedFootprint(building),
+      footprint_coordinates: this.toValidatedCoordinates(ensureHoneybeeCounterClockwise(simplifyFootprint(building.points))),
       floors: Math.max(1, building.floors),
       floor_to_floor_height: building.floorHeight
     };
   }
 
-  private buildValidatedFootprint(building: BuildingModel): [number, number][] {
-    const dedupedPoints = building.points.filter((point, index, points) => {
-      if (!Number.isFinite(point.x) || !Number.isFinite(point.z)) {
-        return false;
-      }
-
-      if (index === 0) {
-        return true;
-      }
-
-      const previous = points[index - 1];
-      return Math.abs(point.x - previous.x) > 1e-6 || Math.abs(point.z - previous.z) > 1e-6;
-    });
-
-    if (dedupedPoints.length > 2) {
-      const first = dedupedPoints[0];
-      const last = dedupedPoints[dedupedPoints.length - 1];
-      if (first.x === last.x && first.z === last.z) {
-        dedupedPoints.pop();
-      }
-    }
-
-    const simplifiedPoints = this.removeCollinearVertices(dedupedPoints);
-    const ccwPoints = ensureHoneybeeCounterClockwise(simplifiedPoints);
-    const footprint = ccwPoints.map((point) => [point.x, point.z] as [number, number]);
+  /** Convert an already simplified, counter-clockwise footprint to [x, z] pairs, rejecting footprints the backend can't use. */
+  private toValidatedCoordinates(points: readonly Point3D[]): [number, number][] {
+    const footprint = points.map((point) => [point.x, point.z] as [number, number]);
 
     if (footprint.length < 3) {
       throw new Error('Building footprint must contain at least 3 unique points for daylight analysis.');
@@ -166,28 +150,6 @@ class DaylightApiService {
     }
 
     return footprint;
-  }
-
-  private removeCollinearVertices(points: BuildingModel['points']): BuildingModel['points'] {
-    if (points.length < 4) {
-      return [...points];
-    }
-
-    const epsilon = 1e-9;
-    const cleaned: BuildingModel['points'] = [];
-
-    for (let i = 0; i < points.length; i += 1) {
-      const prev = points[(i - 1 + points.length) % points.length];
-      const current = points[i];
-      const next = points[(i + 1) % points.length];
-
-      const cross = (current.x - prev.x) * (next.z - current.z) - (current.z - prev.z) * (next.x - current.x);
-      if (Math.abs(cross) > epsilon) {
-        cleaned.push(current);
-      }
-    }
-
-    return cleaned.length >= 3 ? cleaned : [...points];
   }
 
   private isSelfIntersecting(footprint: [number, number][]): boolean {
@@ -252,11 +214,14 @@ class DaylightApiService {
         throw error;
       }
 
+      // Reversing the points also reverses the wall order, so per-wall ratios are reordered to match.
+      // This retry may no longer be needed, see #21.
       const retryRequest: DaylightStudyRequest = {
         ...request,
         room: {
           ...request.room,
-          footprint_coordinates: [...request.room.footprint_coordinates].reverse()
+          footprint_coordinates: [...request.room.footprint_coordinates].reverse(),
+          ...(request.room.wwr_by_edge ? { wwr_by_edge: reverseEdgeValues(request.room.wwr_by_edge) } : {})
         }
       };
 
