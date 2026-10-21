@@ -22,8 +22,8 @@ export interface DaylightRoomInput {
   selected_floor_number: number;
   simulate_all_floors: boolean;
   wwr?: number;
-  /** Window-to-wall ratio per footprint edge, overriding `wwr`. Only sent when a wall is shared on the simulated floor. */
-  wwr_by_edge?: number[];
+  /** Per footprint edge, the floors whose wall is shared with a neighbour (adiabatic, no windows). Only sent when a wall is shared. */
+  shared_floors_by_edge?: number[][];
   window_width: number;
   window_height: number;
   window_spacing: number;

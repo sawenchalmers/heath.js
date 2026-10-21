@@ -13,7 +13,7 @@
 import { BuildingModel } from '../types/building';
 import type { AdjacencyInput } from './BuildingAdjacency';
 import { getBuildingFacadeParameters } from './FacadeGeometry';
-import { buildSimulationFootprint, wwrByEdgeForAllFloors } from './SimulationFootprint';
+import { buildSimulationFootprint, sharedFloorsByEdge } from './SimulationFootprint';
 
 // ── Config ────────────────────────────────────────────────────────────────
 
@@ -117,18 +117,17 @@ class EnergyApiService {
     const simulationFootprint = buildSimulationFootprint(building, neighbours);
     const coords = simulationFootprint.footprint.map(point => [point.x, point.z] as [number, number]);
     const facade = getBuildingFacadeParameters(building);
-    const floors = building.floors ?? 1;
-    // One ratio per wall covers every storey, so only walls shared on all floors lose their windows (#13 step 4).
-    // Per-wall ratios are only sent when there is such a wall, so other requests stay unchanged.
-    const hasWallSharedOnEveryFloor = simulationFootprint.edges.some(edge => edge.sharedFloors.length >= floors);
+    // The backend makes shared walls adiabatic and leaves out their windows, storey by storey;
+    // undefined when nothing is shared, so other requests stay unchanged.
+    const sharedFloors = sharedFloorsByEdge(simulationFootprint);
 
     return {
       footprint_coordinates: coords,
       floor_to_floor_height: building.floorHeight ?? 3.2,
-      floors,
+      floors: building.floors ?? 1,
       orientation_offset: 0,
       wwr: facade.wwr,
-      ...(hasWallSharedOnEveryFloor ? { wwr_by_edge: wwrByEdgeForAllFloors(simulationFootprint, facade.wwr, floors) } : {}),
+      ...(sharedFloors ? { shared_floors_by_edge: sharedFloors } : {}),
       window_width: facade.windowWidth,
       window_height: facade.windowHeight,
       window_spacing: facade.windowSpacing,

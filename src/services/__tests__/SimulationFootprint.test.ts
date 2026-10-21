@@ -3,10 +3,8 @@ import {
   buildSimulationFootprint,
   buildSimulationFootprints,
   reverseEdgeValues,
+  sharedFloorsByEdge,
   simplifyFootprint,
-  wwrByEdgeForAllFloors,
-  wwrByEdgeForFloor,
-  wwrByFloorAndEdge,
 } from '../SimulationFootprint';
 
 const point = (x: number, z: number) => ({ x, y: 0, z });
@@ -52,35 +50,20 @@ describe('buildSimulationFootprints', () => {
   });
 });
 
-describe('window-to-wall ratio per edge', () => {
-  // A 3-storey building whose east wall is split into three pieces by a 1-storey neighbour in the middle,
-  // and whose north wall is shared on every floor with a 3-storey neighbour.
+describe('sharedFloorsByEdge', () => {
   const building = { id: 'a', points: box(0, 0, 10, 10), floors: 3, floorHeight: 3 };
-  const low = { id: 'low', points: box(10, 4, 20, 6), floors: 1, floorHeight: 3 };
-  const north = { id: 'north', points: box(0, 10, 10, 20), floors: 3, floorHeight: 3 };
-  const footprint = buildSimulationFootprint(building, [building, low, north]);
 
-  it('describes the test footprint as expected', () => {
-    expect(footprint.edges.map(edge => edge.sharedFloors)).toEqual([[], [], [1], [], [1, 2, 3], []]);
+  it('lists the shared floors of every wall, including walls shared on only some floors', () => {
+    // A 1-storey neighbour in the middle of the x = 10 wall, and a 3-storey one along the z = 10 wall.
+    const low = { id: 'low', points: box(10, 4, 20, 6), floors: 1, floorHeight: 3 };
+    const back = { id: 'back', points: box(0, 10, 10, 20), floors: 3, floorHeight: 3 };
+    const footprint = buildSimulationFootprint(building, [building, low, back]);
+    expect(sharedFloorsByEdge(footprint)).toEqual([[], [], [1], [], [1, 2, 3], []]);
   });
 
-  it.each([
-    [1, [0.4, 0.4, 0, 0.4, 0, 0.4]],
-    [2, [0.4, 0.4, 0.4, 0.4, 0, 0.4]],
-  ])('for floor %s, sets 0 only on walls shared on that floor', (floor, expected) => {
-    expect(wwrByEdgeForFloor(footprint, 0.4, floor)).toEqual(expected);
-  });
-
-  it('per floor and edge, sets 0 exactly where each floor is shared', () => {
-    expect(wwrByFloorAndEdge(footprint, 0.4, 3)).toEqual([
-      [0.4, 0.4, 0, 0.4, 0, 0.4],
-      [0.4, 0.4, 0.4, 0.4, 0, 0.4],
-      [0.4, 0.4, 0.4, 0.4, 0, 0.4],
-    ]);
-  });
-
-  it('for the whole building, sets 0 only on walls shared on every floor', () => {
-    expect(wwrByEdgeForAllFloors(footprint, 0.4, 3)).toEqual([0.4, 0.4, 0.4, 0.4, 0, 0.4]);
+  it('is undefined when no wall is shared, so the request stays unchanged', () => {
+    const corner = { id: 'corner', points: box(10, 10, 20, 20), floors: 3, floorHeight: 3 };
+    expect(sharedFloorsByEdge(buildSimulationFootprint(building, [building, corner]))).toBeUndefined();
   });
 });
 

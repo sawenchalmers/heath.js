@@ -48,35 +48,35 @@ describe('energy request footprint', () => {
     expect(room.footprint_coordinates).toEqual([[0, 0], [10, 0], [10, 10], [0, 10]]);
   });
 
-  it('sends no per-wall ratios without neighbours', async () => {
+  it('sends no shared walls without neighbours', async () => {
     const room = await sentRoom(makeBuilding());
-    expect(room).not.toHaveProperty('wwr_by_edge');
+    expect(room).not.toHaveProperty('shared_floors_by_edge');
     expect(room.wwr).toBe(0.4);
   });
 });
 
 describe('energy request with neighbouring buildings', () => {
-  it('splits the wall and sends no windows on a piece shared on every floor', async () => {
+  it('splits the wall and sends the floors shared with an equally tall neighbour', async () => {
     const building = makeBuilding();
     const room = await sentRoom(building, [building, eastNeighbour(3)]);
 
     expect(room.footprint_coordinates).toEqual([[0, 0], [10, 0], [10, 4], [10, 6], [10, 10], [0, 10]]);
-    expect(room.wwr_by_edge).toEqual([0.4, 0.4, 0, 0.4, 0.4, 0.4]);
-  });
-
-  it('keeps windows on a wall shared with a lower neighbour, until per-floor data exists (#13 step 4)', async () => {
-    const building = makeBuilding();
-    const room = await sentRoom(building, [building, eastNeighbour(1)]);
-
-    expect(room.footprint_coordinates).toHaveLength(6);
+    expect(room.shared_floors_by_edge).toEqual([[], [], [1, 2, 3], [], [], []]);
     expect(room).not.toHaveProperty('wwr_by_edge');
   });
 
-  it('sends no per-wall ratios when the neighbour only touches at a corner', async () => {
+  it('sends only the floors a lower neighbour covers, so the backend keeps windows above it', async () => {
+    const building = makeBuilding();
+    const room = await sentRoom(building, [building, eastNeighbour(1)]);
+
+    expect(room.shared_floors_by_edge).toEqual([[], [], [1], [], [], []]);
+  });
+
+  it('sends no shared walls when the neighbour only touches at a corner', async () => {
     const building = makeBuilding();
     const room = await sentRoom(building, [building, { id: 'corner', points: box(10, 10, 20, 20), floors: 3, floorHeight: 3 }]);
 
     expect(room.footprint_coordinates).toEqual([[0, 0], [10, 0], [10, 10], [0, 10]]);
-    expect(room).not.toHaveProperty('wwr_by_edge');
+    expect(room).not.toHaveProperty('shared_floors_by_edge');
   });
 });

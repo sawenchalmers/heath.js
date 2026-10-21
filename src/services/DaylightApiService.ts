@@ -1,6 +1,6 @@
 import { BuildingModel, Point3D } from '../types/building';
 import { ensureHoneybeeCounterClockwise, getBuildingFacadeParameters } from './FacadeGeometry';
-import { buildSimulationFootprint, reverseEdgeValues, simplifyFootprint, wwrByEdgeForFloor } from './SimulationFootprint';
+import { buildSimulationFootprint, reverseEdgeValues, sharedFloorsByEdge, simplifyFootprint } from './SimulationFootprint';
 import { calculateSignedArea } from '../utils/geometry';
 import {
   DaylightApiError,
@@ -85,8 +85,8 @@ class DaylightApiService {
     const simulationFootprint = buildSimulationFootprint(building, options.neighbours ?? []);
     const footprint = this.toValidatedCoordinates(simulationFootprint.footprint);
     const facade = getBuildingFacadeParameters(building);
-    // Only send per-wall ratios when a wall is shared on this floor, so other requests stay unchanged.
-    const hasSharedWall = simulationFootprint.edges.some(edge => edge.sharedFloors.includes(selectedFloor));
+    // The backend makes shared walls adiabatic and leaves out their windows; undefined when nothing is shared.
+    const sharedFloors = sharedFloorsByEdge(simulationFootprint);
 
     return {
       room: {
@@ -97,7 +97,7 @@ class DaylightApiService {
         selected_floor_number: selectedFloor,
         simulate_all_floors: options.simulate_all_floors ?? true,
         wwr: facade.wwr,
-        ...(hasSharedWall ? { wwr_by_edge: wwrByEdgeForFloor(simulationFootprint, facade.wwr, selectedFloor) } : {}),
+        ...(sharedFloors ? { shared_floors_by_edge: sharedFloors } : {}),
         window_width: facade.windowWidth,
         window_height: facade.windowHeight,
         window_spacing: facade.windowSpacing,
@@ -214,14 +214,14 @@ class DaylightApiService {
         throw error;
       }
 
-      // Reversing the points also reverses the wall order, so per-wall ratios are reordered to match.
+      // Reversing the points also reverses the wall order, so the shared floors per wall are reordered to match.
       // This retry may no longer be needed, see #21.
       const retryRequest: DaylightStudyRequest = {
         ...request,
         room: {
           ...request.room,
           footprint_coordinates: [...request.room.footprint_coordinates].reverse(),
-          ...(request.room.wwr_by_edge ? { wwr_by_edge: reverseEdgeValues(request.room.wwr_by_edge) } : {})
+          ...(request.room.shared_floors_by_edge ? { shared_floors_by_edge: reverseEdgeValues(request.room.shared_floors_by_edge) } : {})
         }
       };
 

@@ -89,33 +89,33 @@ describe('DaylightApiService sensor point mapping', () => {
       floorHeight: 3,
     });
 
-    it('splits the footprint and sends no windows on the shared piece of wall', () => {
+    it('splits the footprint and sends the shared floors of the shared piece of wall', () => {
       const building = makeBuilding();
       const request = daylightApiService.buildRequestFromBuilding(building, { neighbours: [building, neighbour(3)] });
 
       expect(request.room.footprint_coordinates).toEqual([[0, 0], [4, 0], [4, 1], [4, 3], [4, 4], [0, 4]]);
-      expect(request.room.wwr_by_edge).toEqual([0.4, 0.4, 0, 0.4, 0.4, 0.4]);
+      expect(request.room.shared_floors_by_edge).toEqual([[], [], [1, 2, 3], [], [], []]);
+      expect(request.room).not.toHaveProperty('wwr_by_edge');
     });
 
-    it('keeps windows on a floor above a lower neighbour', () => {
+    it('sends only the floors a lower neighbour covers, so the backend keeps windows above it', () => {
       const building = makeBuilding();
       const request = daylightApiService.buildRequestFromBuilding(building, {
         neighbours: [building, neighbour(1)],
         selected_floor_number: 3,
       });
 
-      expect(request.room.footprint_coordinates).toHaveLength(6);
-      expect(request.room).not.toHaveProperty('wwr_by_edge');
+      expect(request.room.shared_floors_by_edge).toEqual([[], [], [1], [], [], []]);
     });
 
     it('leaves requests without shared walls unchanged', () => {
       const request = daylightApiService.buildRequestFromBuilding(makeBuilding(), { neighbours: [] });
 
       expect(request.room.footprint_coordinates).toEqual([[0, 0], [4, 0], [4, 4], [0, 4]]);
-      expect(request.room).not.toHaveProperty('wwr_by_edge');
+      expect(request.room).not.toHaveProperty('shared_floors_by_edge');
     });
 
-    it('reverses the per-wall ratios together with the footprint when retrying', async () => {
+    it('reverses the shared floors together with the footprint when retrying', async () => {
       const building = makeBuilding();
       // Touching the south end of the east wall, so the shared wall changes position when the points are
       // reversed (a neighbour in the middle of the wall would land on the same index by coincidence).
@@ -129,18 +129,18 @@ describe('DaylightApiService sensor point mapping', () => {
       await expect(daylightApiService.runStudyForBuilding(building, { neighbours: [building, cornerNeighbour] })).rejects.toThrow('stop after retry');
       startStudy.mockRestore();
 
-      // Each wall, named by its two corners, must keep its ratio after the reversal.
-      const ratioByWall = (request: DaylightStudyRequest) => {
+      // Each wall, named by its two corners, must keep its shared floors after the reversal.
+      const floorsByWall = (request: DaylightStudyRequest) => {
         const points = request.room.footprint_coordinates;
         return Object.fromEntries(points.map((point, i) => {
           const next = points[(i + 1) % points.length];
-          return [[point.join(','), next.join(',')].sort().join(' – '), request.room.wwr_by_edge![i]];
+          return [[point.join(','), next.join(',')].sort().join(' – '), request.room.shared_floors_by_edge![i]];
         }));
       };
       expect(sentRequests).toHaveLength(2);
       expect(sentRequests[1].room.footprint_coordinates).toEqual([...sentRequests[0].room.footprint_coordinates].reverse());
-      expect(ratioByWall(sentRequests[1])).toEqual(ratioByWall(sentRequests[0]));
-      expect(ratioByWall(sentRequests[1])['4,0 – 4,1']).toBe(0);
+      expect(floorsByWall(sentRequests[1])).toEqual(floorsByWall(sentRequests[0]));
+      expect(floorsByWall(sentRequests[1])['4,0 – 4,1']).toEqual([1, 2, 3]);
     });
   });
 

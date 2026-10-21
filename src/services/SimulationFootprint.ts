@@ -41,24 +41,14 @@ export const buildSimulationFootprints = (buildings: readonly AdjacencyInput[]):
 export const buildSimulationFootprint = (building: AdjacencyInput, buildings: readonly AdjacencyInput[]): BuildingAdjacency =>
   computeBuildingAdjacency(withSimplifiedFootprint(building), buildings.map(withSimplifiedFootprint));
 
-/** Window-to-wall ratio per edge for one storey: 0 on walls shared on that floor, otherwise `wwr`. */
-export const wwrByEdgeForFloor = (footprint: BuildingAdjacency, wwr: number, floor: number): number[] =>
-  footprint.edges.map(edge => (edge.sharedFloors.includes(floor) ? 0 : wwr));
-
 /**
- * Window-to-wall ratio per floor and edge, as `result[floor - 1][edge]`: 0 where that floor's wall is shared.
- * This is the exact data a multi-storey model needs (energy, and daylight once it models every floor).
+ * The shared floors of every edge, as sent to the backend in `shared_floors_by_edge`, or undefined when
+ * no wall is shared, so requests for buildings without neighbours stay unchanged (and keep their cache).
  */
-export const wwrByFloorAndEdge = (footprint: BuildingAdjacency, wwr: number, floors: number): number[][] =>
-  Array.from({ length: floors }, (_, index) => wwrByEdgeForFloor(footprint, wwr, index + 1));
-
-/**
- * Window-to-wall ratio per edge for a whole-building model, where one value applies to every storey:
- * 0 only on walls shared on all floors. Partly shared walls keep their windows until per-floor data
- * is sent to the backend (#13).
- */
-export const wwrByEdgeForAllFloors = (footprint: BuildingAdjacency, wwr: number, floors: number): number[] =>
-  footprint.edges.map(edge => (edge.sharedFloors.length >= floors ? 0 : wwr));
+export const sharedFloorsByEdge = (footprint: BuildingAdjacency): number[][] | undefined =>
+  footprint.edges.some(edge => edge.sharedFloors.length > 0)
+    ? footprint.edges.map(edge => [...edge.sharedFloors])
+    : undefined;
 
 /**
  * Reorder per-edge values for a footprint whose points have been reversed. Reversing the points
