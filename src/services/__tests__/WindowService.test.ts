@@ -132,6 +132,8 @@ describe('WindowService facade overlays', () => {
   });
 });
 
+// Visual explanation of these tests (group 4):
+// https://claude.ai/artifact/G3TizxVrAig6HLK3U61E8Y (private Claude artifact; share it before others can open it)
 describe('windows on shared walls', () => {
   /** Number of apertures a building has on its own, with no neighbours. */
   const aloneCount = (b: BuildingData) =>

@@ -15,6 +15,8 @@ const sharedEdges = (adjacency: BuildingAdjacency) => adjacency.edges.flatMap((e
   return [{ from: [round(a.x), round(a.z)], to: [round(b.x), round(b.z)], floors: edge.sharedFloors, neighbours: edge.neighbourIds }];
 });
 
+// Visual explanation of these tests:
+// https://claude.ai/artifact/NDh5bGUadaDKcD2mvUrj4F (private Claude artifact; share it before others can open it)
 describe('building adjacency', () => {
   const base = building('base', box(0, 0, 10, 10));
 

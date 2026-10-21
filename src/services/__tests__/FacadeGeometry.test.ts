@@ -102,6 +102,8 @@ describe('Honeybee-faithful facade geometry', () => {
       .toBeCloseTo(perimeter * 2.5 * 0.95, 8);
   });
 
+  // Visual explanation of this test (group 3):
+  // https://claude.ai/artifact/G3TizxVrAig6HLK3U61E8Y (private Claude artifact; share it before others can open it)
   it('leaves out windows on shared walls, only on the shared floors', () => {
     const parameters = { ...DEFAULT_FACADE_PARAMETERS, wwr: 0.4 };
     const all = buildFacadeLayout(rectangle, 2, 3, parameters).apertures;

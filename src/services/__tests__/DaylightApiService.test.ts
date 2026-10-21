@@ -78,6 +78,8 @@ describe('DaylightApiService sensor point mapping', () => {
     expect(signedArea).toBeGreaterThan(0);
   });
 
+  // Visual explanation of these tests (group 6):
+  // https://claude.ai/artifact/G3TizxVrAig6HLK3U61E8Y (private Claude artifact; share it before others can open it)
   describe('walls shared with neighbouring buildings', () => {
     // A 3-storey neighbour touching the middle of the east wall (x = 4, z = 1–3), and a 1-storey one.
     const neighbour = (floors: number) => ({

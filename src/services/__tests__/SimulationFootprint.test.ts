@@ -12,6 +12,8 @@ import {
 const point = (x: number, z: number) => ({ x, y: 0, z });
 const box = (x0: number, z0: number, x1: number, z1: number) => [point(x0, z0), point(x1, z0), point(x1, z1), point(x0, z1)];
 
+// Visual explanation of the tests in this file (groups 1, 2 and 5):
+// https://claude.ai/artifact/G3TizxVrAig6HLK3U61E8Y (private Claude artifact; share it before others can open it)
 describe('simplifyFootprint', () => {
   it.each([
     ['repeated points', [point(0, 0), point(10, 0), point(10, 0), point(10, 8), point(0, 8)]],

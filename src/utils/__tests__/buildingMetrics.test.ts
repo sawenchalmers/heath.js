@@ -22,6 +22,8 @@ describe('building metrics', () => {
   });
 });
 
+// Visual explanation of the overlap tests below, including the comparison with the grid reference:
+// https://claude.ai/artifact/C1z9tum1aTYPiRWPgXwygY (private Claude artifact; share it before others can open it)
 describe('footprint overlap between buildings', () => {
   const base = box(0, 0, 10, 10);
 
