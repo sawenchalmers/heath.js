@@ -11,7 +11,9 @@
  */
 
 import { BuildingModel } from '../types/building';
-import { ensureHoneybeeCounterClockwise, getBuildingFacadeParameters } from './FacadeGeometry';
+import type { AdjacencyInput } from './BuildingAdjacency';
+import { getBuildingFacadeParameters } from './FacadeGeometry';
+import { buildSimulationFootprint, wwrByEdgeForAllFloors } from './SimulationFootprint';
 
 // ── Config ────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,8 @@ export interface EnergyStudyOptions {
   hvac_system?: string;
   natural_ventilation?: boolean;
   location: string;
+  /** Other buildings, used to find walls shared with the simulated building. */
+  neighbours?: readonly AdjacencyInput[];
 }
 
 export interface EnergyStudyQueued {
@@ -108,17 +112,23 @@ class EnergyApiService {
 
   // ── Room geometry builder ────────────────────────────────────────────────
 
-  private buildRoomFromBuilding(building: BuildingModel) {
-    const coords = ensureHoneybeeCounterClockwise(building.points)
-      .map(point => [point.x, point.z] as [number, number]);
+  private buildRoomFromBuilding(building: BuildingModel, neighbours: readonly AdjacencyInput[]) {
+    // Same simplified, split footprint as the window preview and daylight, so edge n is the same wall everywhere.
+    const simulationFootprint = buildSimulationFootprint(building, neighbours);
+    const coords = simulationFootprint.footprint.map(point => [point.x, point.z] as [number, number]);
     const facade = getBuildingFacadeParameters(building);
+    const floors = building.floors ?? 1;
+    // One ratio per wall covers every storey, so only walls shared on all floors lose their windows (#13 step 4).
+    // Per-wall ratios are only sent when there is such a wall, so other requests stay unchanged.
+    const hasWallSharedOnEveryFloor = simulationFootprint.edges.some(edge => edge.sharedFloors.length >= floors);
 
     return {
       footprint_coordinates: coords,
       floor_to_floor_height: building.floorHeight ?? 3.2,
-      floors: building.floors ?? 1,
+      floors,
       orientation_offset: 0,
       wwr: facade.wwr,
+      ...(hasWallSharedOnEveryFloor ? { wwr_by_edge: wwrByEdgeForAllFloors(simulationFootprint, facade.wwr, floors) } : {}),
       window_width: facade.windowWidth,
       window_height: facade.windowHeight,
       window_spacing: facade.windowSpacing,
@@ -135,7 +145,7 @@ class EnergyApiService {
     options: EnergyStudyOptions,
     signal?: AbortSignal
   ): Promise<EnergyStudyQueued> {
-    const room = this.buildRoomFromBuilding(building);
+    const room = this.buildRoomFromBuilding(building, options.neighbours ?? []);
 
     // Resolve constructions: prefer explicitly passed options, fall back to building fields
     const constructions: EnergyStudyConstructions = {
