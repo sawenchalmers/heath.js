@@ -478,6 +478,7 @@ export const SimpleBuildingCreator: React.FC = () => {
       setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'queued', message: 'Submitting energy study…' } } : previous);
       const coordinated = await simulationCoordinator.runEnergyStudy({
         building: targetBuilding,
+        buildings: runSnapshot,
         location,
         epsm: epsmOpts,
         signal: energyAbortControllerRef.current.signal,
@@ -1001,6 +1002,7 @@ export const SimpleBuildingCreator: React.FC = () => {
                 hvac_system:      building.hvac_system      ?? 'Default HVAC',
                 natural_ventilation: building.natural_ventilation ?? false,
                 location,
+                neighbours: node.buildings,
               },
               {
                 onQueued: (studyId) => designExplorationService.updateNode(nodeId, {

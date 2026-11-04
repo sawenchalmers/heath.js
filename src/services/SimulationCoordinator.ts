@@ -15,6 +15,8 @@ interface DaylightStudySetOptions {
 
 interface EnergyStudyOptions {
   building: BuildingModel;
+  /** All buildings in the scene, used to find walls shared with `building`. */
+  buildings: readonly BuildingModel[];
   location: string;
   epsm: EPSMConstructionOptions | null;
   signal: AbortSignal;
@@ -52,7 +54,8 @@ export class SimulationCoordinator {
     }]));
   }
 
-  async runEnergyStudy({ building, location, epsm, signal, callbacks }: EnergyStudyOptions): Promise<CoordinatedEnergyResult> {
+  /** Run an energy study for one building, with shared walls taken from the other buildings. */
+  async runEnergyStudy({ building, buildings, location, epsm, signal, callbacks }: EnergyStudyOptions): Promise<CoordinatedEnergyResult> {
     const constructions = resolveEnergyConstructions(epsm, {
       wall: building.wall_construction,
       floor: building.floor_construction,
@@ -67,6 +70,7 @@ export class SimulationCoordinator {
         hvac_system: building.hvac_system ?? 'Default HVAC',
         natural_ventilation: building.natural_ventilation ?? false,
         location,
+        neighbours: buildings,
       },
       callbacks,
       signal,
