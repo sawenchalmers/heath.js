@@ -281,4 +281,4 @@ heath.js builds on several earlier tools developed for teaching at Chalmers:
 
 ## License
 
-TBA.
+This project is licensed under the [MIT License](LICENSE).
