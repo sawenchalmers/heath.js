@@ -1,7 +1,7 @@
 /**
  * EnergyApiService
  * ----------------
- * Client for the honeybeeDaylight backend's energy simulation endpoints.
+ * Client for the heath-engine backend's energy simulation endpoints.
  * Mirrors the DaylightApiService pattern.
  *
  * Backend endpoints (to be implemented — see ENERGY_SIMULATION.md):
