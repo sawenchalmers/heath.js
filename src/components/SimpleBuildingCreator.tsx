@@ -473,8 +473,8 @@ export const SimpleBuildingCreator: React.FC = () => {
     ]);
 
     energyAbortControllerRef.current?.abort();
-    energyAbortControllerRef.current = new AbortController();
-    let energyResult: Awaited<ReturnType<typeof energyApiService.runEnergyStudy>> | null = null;
+    const energyAbortController = new AbortController();
+    energyAbortControllerRef.current = energyAbortController;
 
     const daylightPromise = runDaylightSimulation(targetBuilding, name, runSnapshot, { location });
     const energyPromise = (async () => {
@@ -485,18 +485,14 @@ export const SimpleBuildingCreator: React.FC = () => {
         buildings: runSnapshot,
         location,
         epsm: epsmOpts,
-        signal: energyAbortControllerRef.current.signal,
+        signal: energyAbortController.signal,
         callbacks: {
           onQueued: () => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'queued', message: 'Waiting for an energy worker…' } } : previous),
           onStatusUpdate: status => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'running', message: status.stage ?? status.status } } : previous),
-          onComplete: (result) => {
-            energyResult = result;
-            setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'complete', message: 'Energy results are ready.' } } : previous);
-          },
+          onComplete: () => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'complete', message: 'Energy results are ready.' } } : previous),
           onError: error => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'failed', message: error.message } } : previous),
         },
       });
-      energyResult = coordinated.result;
       return coordinated.result;
     })().catch(error => {
       const message = error instanceof Error ? error.message : 'Energy simulation failed.';
@@ -507,7 +503,8 @@ export const SimpleBuildingCreator: React.FC = () => {
     const [, energySettled] = await Promise.allSettled([daylightPromise, energyPromise]);
     setIsSaveAndRunInProgress(false);
     const node = designExplorationService.getCurrentNode();
-    if (node && energySettled.status === 'fulfilled' && energyResult) {
+    if (node && energySettled.status === 'fulfilled') {
+      const energyResult = energySettled.value;
       const resolvedConstructions = resolveEnergyConstructions(epsmOpts, {
         wall: targetBuilding.wall_construction, floor: targetBuilding.floor_construction,
         roof: targetBuilding.roof_construction, window: targetBuilding.window_construction,
