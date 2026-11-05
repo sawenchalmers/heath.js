@@ -1,5 +1,6 @@
 import type { BuildingModel } from '../types/building';
 import type { DaylightRunSummary } from '../types/daylight';
+import type { EnergyRunMetadata } from '../types/designExploration';
 import { ensureHoneybeeCounterClockwise, getBuildingFacadeParameters } from './FacadeGeometry';
 import type { AdjacencyInput } from './BuildingAdjacency';
 import { buildSimulationFootprint, sharedFloorsByEdge } from './SimulationFootprint';
@@ -77,6 +78,16 @@ export const createEnergyInputFingerprint = (building: BuildingModel, buildings:
   hvacSystem: building.hvac_system ?? null,
   naturalVentilation: building.natural_ventilation ?? false
 });
+
+/**
+ * Whether a saved energy result still matches the scene: the building it simulated still exists and
+ * its fingerprint, with the current neighbours, is unchanged. Results saved without a building id count as out of date.
+ */
+export const isEnergyRunCurrent = (energyRun: EnergyRunMetadata | undefined, buildings: readonly BuildingModel[]): boolean => {
+  const simulated = buildings.find(building => building.id === energyRun?.buildingId);
+  return Boolean(simulated && energyRun?.inputFingerprint
+    && energyRun.inputFingerprint === createEnergyInputFingerprint(simulated, buildings));
+};
 
 export const retainValidDaylightResults = (
   results: Record<string, DaylightRunSummary>,

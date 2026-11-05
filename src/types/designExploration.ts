@@ -33,6 +33,8 @@ export interface DaylightRunMetadata {
 export type EnergyRunStatus = 'idle' | 'queued' | 'running' | 'complete' | 'failed';
 
 export interface EnergyRunMetadata {
+  /** The building the energy study simulated; the others in the node only provide shared walls. */
+  buildingId?: string;
   inputFingerprint?: string;
   studyId?: string;
   status: EnergyRunStatus;

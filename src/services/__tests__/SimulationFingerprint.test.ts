@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BuildingData } from '../../types/building';
 import type { DaylightRunSummary } from '../../types/daylight';
-import { createDaylightInputFingerprint, createEnergyInputFingerprint, retainValidDaylightResults } from '../SimulationFingerprint';
+import { createDaylightInputFingerprint, createEnergyInputFingerprint, isEnergyRunCurrent, retainValidDaylightResults } from '../SimulationFingerprint';
 
 const building = (id: string): BuildingData => ({
   id,
@@ -92,5 +92,31 @@ describe('energy fingerprint and neighbouring buildings', () => {
   it('keeps the fingerprint when an extra point is added in the middle of a straight wall', () => {
     const withExtraPoint = { ...target, points: [point(0, 0), point(5, 0), point(10, 0), point(10, 8), point(0, 8)] };
     expect(createEnergyInputFingerprint(withExtraPoint, [withExtraPoint])).toBe(createEnergyInputFingerprint(target, [target]));
+  });
+});
+
+describe('whether a saved energy result is current', () => {
+  const point = (x: number, z: number) => ({ x, y: 0, z });
+  const box = (x0: number, z0: number, x1: number, z1: number) => [point(x0, z0), point(x1, z0), point(x1, z1), point(x0, z1)];
+  /** A scene where the simulated building is not the first one, as when it was drawn second. */
+  const first = { ...building('first'), points: box(-30, 0, -20, 8) };
+  const simulated = building('simulated');
+  const scene = [first, simulated];
+  const savedRun = { status: 'complete' as const, buildingId: simulated.id, inputFingerprint: createEnergyInputFingerprint(simulated, scene) };
+
+  it('checks the building the study simulated, not the first building in the scene', () => {
+    expect(isEnergyRunCurrent(savedRun, scene)).toBe(true);
+    expect(isEnergyRunCurrent(savedRun, [first, { ...simulated, floors: 4 }])).toBe(false);
+  });
+
+  it('goes out of date when a neighbour starts touching a wall', () => {
+    const touching = { ...building('touching'), points: box(10, 2, 20, 6) };
+    expect(isEnergyRunCurrent(savedRun, [...scene, touching])).toBe(false);
+  });
+
+  it('counts results without a building id, or whose building is gone, as out of date', () => {
+    expect(isEnergyRunCurrent({ ...savedRun, buildingId: undefined }, scene)).toBe(false);
+    expect(isEnergyRunCurrent(savedRun, [first])).toBe(false);
+    expect(isEnergyRunCurrent(undefined, scene)).toBe(false);
   });
 });

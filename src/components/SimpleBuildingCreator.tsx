@@ -30,7 +30,7 @@ import { energyApiService } from '../services/EnergyApiService';
 import { daylightVisualizationService, getOverlayDatasetsForResults } from '../services/DaylightVisualizationService';
 import { getEPSMConstructionOptions, getCachedEPSMOptions, computePortfolioEmbodiedCarbon, calculateEmbodiedCarbon, resolveEnergyConstructions } from '../services/EPSMService';
 import { DaylightRunSummary } from '../types/daylight';
-import { createEnergyInputFingerprint, retainValidDaylightResults } from '../services/SimulationFingerprint';
+import { createEnergyInputFingerprint, isEnergyRunCurrent, retainValidDaylightResults } from '../services/SimulationFingerprint';
 import { DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { SimulationProgressCard, type SimulationTaskState } from './model/SimulationProgressCard';
 import { DaylightLegend } from './model/DaylightLegend';
@@ -527,7 +527,7 @@ export const SimpleBuildingCreator: React.FC = () => {
       }) : null;
       designExplorationService.updateNode(node.id, {
         energyRun: {
-          status: 'complete', inputFingerprint: createEnergyInputFingerprint(targetBuilding, runSnapshot),
+          status: 'complete', buildingId: targetBuilding.id, inputFingerprint: createEnergyInputFingerprint(targetBuilding, runSnapshot),
           studyId: energyResult.study_id, monthlyHeatBalance: energyResult.monthly_heat_balance ?? undefined,
         },
         metrics: {
@@ -540,7 +540,7 @@ export const SimpleBuildingCreator: React.FC = () => {
       });
     } else if (node && energySettled.status === 'rejected') {
       designExplorationService.updateNode(node.id, {
-        energyRun: { status: 'failed', error: energySettled.reason instanceof Error ? energySettled.reason.message : 'Energy simulation failed.' },
+        energyRun: { status: 'failed', buildingId: targetBuilding.id, error: energySettled.reason instanceof Error ? energySettled.reason.message : 'Energy simulation failed.' },
       });
     }
   };
@@ -975,7 +975,8 @@ export const SimpleBuildingCreator: React.FC = () => {
         onRunEnergySimulation={async (nodeId) => {
           const node = designExplorationService.getGraph().nodes.find(n => n.id === nodeId);
           if (!node || node.buildings.length === 0) return;
-          const building = node.buildings[0];
+          // Rerun the building the node's energy study simulated; older nodes without an id fall back to the first building.
+          const building = node.buildings.find(b => b.id === node.energyRun?.buildingId) ?? node.buildings[0];
 
           // Fetch location and EPSM options in parallel before submitting
           const [location, epsmOpts] = await Promise.all([
@@ -1034,6 +1035,7 @@ export const SimpleBuildingCreator: React.FC = () => {
                   designExplorationService.updateNode(nodeId, {
                     energyRun: {
                       status: 'complete',
+                      buildingId: building.id,
                       inputFingerprint: createEnergyInputFingerprint(building, node.buildings),
                       studyId: result.study_id,
                       monthlyHeatBalance: result.monthly_heat_balance ?? undefined,
@@ -1072,14 +1074,12 @@ export const SimpleBuildingCreator: React.FC = () => {
           energyResults={(() => {
             const node = designExplorationService.getCurrentNode();
             if (!node) return undefined;
-            const simulatedBuildingId = node.buildings[0]?.id;
-            const currentSimulatedBuilding = buildings.find(building => building.id === simulatedBuildingId);
-            const isCurrent = Boolean(
-              currentSimulatedBuilding &&
-              node.energyRun?.inputFingerprint &&
-              node.energyRun.inputFingerprint === createEnergyInputFingerprint(currentSimulatedBuilding, buildings)
-            );
-            if (!isCurrent) {
+            // A run in progress shows its status, even before it has a fingerprint for the current scene.
+            const status = node.energyRun?.status;
+            if (status === 'queued' || status === 'running') {
+              return { status };
+            }
+            if (!isEnergyRunCurrent(node.energyRun, buildings)) {
               return { status: 'idle' as const };
             }
             return {
