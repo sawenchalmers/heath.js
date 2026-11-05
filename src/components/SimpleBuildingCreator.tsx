@@ -368,6 +368,10 @@ export const SimpleBuildingCreator: React.FC = () => {
     daylightVisualizationService.clear(scene);
 
     try {
+      // Dev aid (#28): skip daylight so energy can run on its own. Off by default; start with VITE_SKIP_DAYLIGHT=true to enable.
+      if (import.meta.env.DEV && import.meta.env.VITE_SKIP_DAYLIGHT === 'true') {
+        throw new Error('Daylight skipped (VITE_SKIP_DAYLIGHT is set).');
+      }
       const resultsById = await simulationCoordinator.runDaylightStudySet({
         buildings: snapshotBuildings,
         location: resolvedLocation,
