@@ -523,7 +523,7 @@ export const SimpleBuildingCreator: React.FC = () => {
       }) : null;
       designExplorationService.updateNode(node.id, {
         energyRun: {
-          status: 'complete', inputFingerprint: createEnergyInputFingerprint(targetBuilding),
+          status: 'complete', inputFingerprint: createEnergyInputFingerprint(targetBuilding, runSnapshot),
           studyId: energyResult.study_id, monthlyHeatBalance: energyResult.monthly_heat_balance ?? undefined,
         },
         metrics: {
@@ -1030,7 +1030,7 @@ export const SimpleBuildingCreator: React.FC = () => {
                   designExplorationService.updateNode(nodeId, {
                     energyRun: {
                       status: 'complete',
-                      inputFingerprint: createEnergyInputFingerprint(building),
+                      inputFingerprint: createEnergyInputFingerprint(building, node.buildings),
                       studyId: result.study_id,
                       monthlyHeatBalance: result.monthly_heat_balance ?? undefined,
                     },
@@ -1073,7 +1073,7 @@ export const SimpleBuildingCreator: React.FC = () => {
             const isCurrent = Boolean(
               currentSimulatedBuilding &&
               node.energyRun?.inputFingerprint &&
-              node.energyRun.inputFingerprint === createEnergyInputFingerprint(currentSimulatedBuilding)
+              node.energyRun.inputFingerprint === createEnergyInputFingerprint(currentSimulatedBuilding, buildings)
             );
             if (!isCurrent) {
               return { status: 'idle' as const };
