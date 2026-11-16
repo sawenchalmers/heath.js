@@ -494,6 +494,9 @@ export const SimpleBuildingCreator: React.FC = () => {
 
     const [, energySettled] = await Promise.allSettled([daylightPromise, energyPromise]);
     setIsSaveAndRunInProgress(false);
+    // Aborted by whatever took over (reinstating another configuration, or an energy rerun in the design graph):
+    // the current node is no longer this run's, so leave it alone, whether energy failed or had already finished (#28).
+    if (energyAbortController.signal.aborted) return;
     const node = designExplorationService.getCurrentNode();
     if (node && energySettled.status === 'fulfilled') {
       const energyResult = energySettled.value;
