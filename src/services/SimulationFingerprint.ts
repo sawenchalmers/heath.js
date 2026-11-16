@@ -81,11 +81,12 @@ export const createEnergyInputFingerprint = (building: BuildingModel, buildings:
 
 /**
  * Whether a saved energy result still matches the scene: the building it simulated still exists and
- * its fingerprint, with the current neighbours, is unchanged. Results saved without a building id count as out of date.
+ * its fingerprint, with the current neighbours, is unchanged. Results saved without a building id count as out of date,
+ * and so does any run that is not complete: a failed rerun keeps the previous run's fingerprint, because updates merge.
  */
 export const isEnergyRunCurrent = (energyRun: EnergyRunMetadata | undefined, buildings: readonly BuildingModel[]): boolean => {
   const simulated = buildings.find(building => building.id === energyRun?.buildingId);
-  return Boolean(simulated && energyRun?.inputFingerprint
+  return Boolean(simulated && energyRun?.status === 'complete' && energyRun.inputFingerprint
     && energyRun.inputFingerprint === createEnergyInputFingerprint(simulated, buildings));
 };
 

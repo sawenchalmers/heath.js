@@ -119,4 +119,11 @@ describe('whether a saved energy result is current', () => {
     expect(isEnergyRunCurrent(savedRun, [first])).toBe(false);
     expect(isEnergyRunCurrent(undefined, scene)).toBe(false);
   });
+
+  it('only counts a complete run, even when a later failed or running rerun kept the old fingerprint', () => {
+    // updateNode merges energyRun, so a rerun's status lands next to the previous run's fingerprint.
+    for (const status of ['failed', 'queued', 'running', 'idle'] as const) {
+      expect(isEnergyRunCurrent({ ...savedRun, status }, scene)).toBe(false);
+    }
+  });
 });
