@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { BuildingConfig, BuildingData, BuildingModel, Point3D } from '../types/building';
 import type { useBuildingEditSession, BuildingEditDraft } from './useBuildingEditSession';
-import { centroid, snapRotation, isOrthogonalFootprint, nearestOnSegment, rectangle, resolveSnap, rotateFootprint, translateFootprint, type ScreenPoint, type Snap } from '../utils/footprintInteraction';
+import { centroid, snapRotation, footprintCreationError, nearestOnSegment, rectangle, resolveSnap, rotateFootprint, translateFootprint, type ScreenPoint, type Snap } from '../utils/footprintInteraction';
 import { validateFootprint } from '../utils/buildingMetrics';
 import { WorkspaceHistory } from '../utils/workspaceHistory';
 
@@ -129,8 +129,13 @@ export function useWorkspaceEditor(options: Options) {
     publish({ tool, points: [], vertex: null, cursor: null, insertion: null, feedback: '', error: null });
     if (tool === 'polygon' || tool === 'rectangle' || tool === 'reshape') view(true);
   };
+  /** The footprint Finish would create: the rectangle to the cursor, or the polygon's placed points. */
+  const drawnFootprint = (s: typeof stateRef.current) => s.tool === 'rectangle' && s.points[0] && s.cursor ? rectangle(s.points[0], s.cursor) : s.points;
+  /** Why the footprint can't be created, with the same rules for the Finish button and for creating. */
+  const creationError = (candidate: readonly Point3D[], s: typeof stateRef.current, orthogonal: boolean) =>
+    footprintCreationError(candidate, otherFootprints(), orthogonal && s.tool === 'polygon');
   const create = (candidate: Point3D[]) => {
-    const error = validateFootprint(candidate, otherFootprints()) ?? (orthoRef.current && stateRef.current.tool === 'polygon' && !isOrthogonalFootprint(candidate) ? 'Align the final point with the start to close at 90°.' : null);
+    const error = creationError(candidate, stateRef.current, orthoRef.current);
     if (error) { publish({ error }); return; }
     const o = optionsRef.current;
     const snapshot = o.captureSnapshot();
@@ -141,10 +146,7 @@ export function useWorkspaceEditor(options: Options) {
     publish({ tool: 'reshape' });
     refreshHistory(n => n + 1); o.onChange(selectedId.current);
   };
-  const finish = () => {
-    const s = stateRef.current;
-    create(s.tool === 'rectangle' && s.points[0] && s.cursor ? rectangle(s.points[0], s.cursor) : s.points);
-  };
+  const finish = () => create(drawnFootprint(stateRef.current));
   const preview = (candidate: Point3D[]) => {
     const error = validateFootprint(candidate, otherFootprints());
     if (gesture.current) { gesture.current.candidate = candidate; gesture.current.invalid = error; }
@@ -263,7 +265,11 @@ export function useWorkspaceEditor(options: Options) {
     } else if (s.tool === 'polygon' || s.tool === 'rectangle') {
       const cursor = snapPoint(raw, event, s.points[s.points.length - 1]);
       const candidate = s.tool === 'rectangle' && s.points[0] ? rectangle(s.points[0], cursor) : [...s.points, cursor];
-      publish({ cursor, insertion: null, error: candidate.length >= 3 && stateRef.current.snap?.kind !== 'Close' ? validateFootprint(candidate, otherFootprints()) : null });
+      // Snapped to the first point, the cursor closes the polygon: show whether closing it here would create a building.
+      const closing = stateRef.current.snap?.kind === 'Close';
+      const error = closing ? creationError(s.points, s, orthoRef.current)
+        : candidate.length >= 3 ? validateFootprint(candidate, otherFootprints()) : null;
+      publish({ cursor, insertion: null, error });
     } else if (!g && s.tool === 'reshape') {
       const rect = optionsRef.current.containerRef.current!.getBoundingClientRect();
       const mouse = { x: event.clientX - rect.left, y: event.clientY - rect.top };
@@ -410,6 +416,8 @@ export function useWorkspaceEditor(options: Options) {
   return {
     state, projection, plan, view, activate, select, finish, cancel, remove, escape, deleteSelectedBuilding,
     ortho, setOrtho: (value: boolean) => { orthoRef.current = value; setOrtho(value); publish({ snap: null }); },
+    // Why Finish is disabled while drawing (null when it can create the building).
+    finishError: state.tool === 'polygon' || state.tool === 'rectangle' ? creationError(drawnFootprint(state), state, ortho) : null,
     gridStep, setGridStep, historyVersion, canUndo: history.current.canUndo || state.points.length > 0, canRedo: history.current.canRedo || drawingRedo.current.length > 0,
     undo: () => travel(false), redo: () => travel(true),
     reset: () => { select(null); history.current.clear(); refreshHistory(n => n + 1); },
