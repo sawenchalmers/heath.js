@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "engine": "node scripts/engine.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

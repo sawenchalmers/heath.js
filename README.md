@@ -104,6 +104,14 @@ The application will normally be available at:
 http://localhost:5173
 ```
 
+Simulations need heath-engine running as well. With heath-engine cloned next to heath.js and its `.venv` set up (see the heath-engine README), start it in a second terminal:
+
+```bash
+npm run engine
+```
+
+It serves on `http://127.0.0.1:8000`, which the dev server proxies to, and restarts by itself when the engine's Python code changes. Stop it with Ctrl+C without affecting the dev server. If heath-engine is somewhere else, set `HEATH_ENGINE_DIR` to its folder.
+
 ### Build
 
 ```bash
