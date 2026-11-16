@@ -31,6 +31,7 @@ import { daylightVisualizationService, getOverlayDatasetsForResults } from '../s
 import { getEPSMConstructionOptions, getCachedEPSMOptions, computePortfolioEmbodiedCarbon, calculateEmbodiedCarbon, resolveEnergyConstructions } from '../services/EPSMService';
 import { DaylightRunSummary } from '../types/daylight';
 import { createEnergyInputFingerprint, isEnergyRunCurrent, retainValidDaylightResults } from '../services/SimulationFingerprint';
+import { energyRunAfterRerunError } from '../services/EnergyRunUpdates';
 import { DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { SimulationProgressCard, type SimulationTaskState } from './model/SimulationProgressCard';
 import { DaylightLegend } from './model/DaylightLegend';
@@ -983,7 +984,9 @@ export const SimpleBuildingCreator: React.FC = () => {
           if (!location) return;
 
           energyAbortControllerRef.current?.abort();
-          energyAbortControllerRef.current = new AbortController();
+          // Kept locally: the ref is replaced when another run starts, and the catch below needs this run's signal.
+          const rerunAbortController = new AbortController();
+          energyAbortControllerRef.current = rerunAbortController;
 
           designExplorationService.updateNode(nodeId, {
             energyRun: { status: 'queued', stage: 'Submitting…' }
@@ -1050,14 +1053,12 @@ export const SimpleBuildingCreator: React.FC = () => {
                   energyRun: { status: 'failed', error: err.message }
                 }),
               },
-              energyAbortControllerRef.current.signal
+              rerunAbortController.signal
             );
           } catch (err) {
-            if (err instanceof Error && err.message !== 'Energy study aborted') {
-              designExplorationService.updateNode(nodeId, {
-                energyRun: { status: 'failed', error: (err as Error).message }
-              });
-            }
+            designExplorationService.updateNode(nodeId, {
+              energyRun: energyRunAfterRerunError(err, rerunAbortController.signal.aborted)
+            });
           }
         }}
       />
