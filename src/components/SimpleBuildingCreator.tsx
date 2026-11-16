@@ -35,6 +35,7 @@ import { DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { SimulationProgressCard, type SimulationTaskState } from './model/SimulationProgressCard';
 import { DaylightLegend } from './model/DaylightLegend';
 import { DesignGraphOverviewCard } from './model/DesignGraphOverviewCard';
+import { EngineUnavailableNotice, SIMULATIONS_UNAVAILABLE_MESSAGE } from './model/EngineUnavailableNotice';
 import { simulationCoordinator } from '../services/SimulationCoordinator';
 
 type DaylightLegendState = {
@@ -58,6 +59,8 @@ export const SimpleBuildingCreator: React.FC = () => {
   const [showDaylightResultsDialog, setShowDaylightResultsDialog] = useState(false);
   const [activeResultsBuildingId, setActiveResultsBuildingId] = useState<string | null>(null);
   const [isSaveAndRunInProgress, setIsSaveAndRunInProgress] = useState(false);
+  const [showEngineUnavailable, setShowEngineUnavailable] = useState(false);
+  const isCheckingEngineRef = useRef(false);
   const [simulationProgress, setSimulationProgress] = useState<{ daylight: SimulationTaskState; energy: SimulationTaskState } | null>(null);
   const [daylightResultsByBuildingId, setDaylightResultsByBuildingId] = useState<Record<string, DaylightRunSummary>>({});
   const analysisCacheRef = useRef(new Map<string, { id: string; result: DaylightRunSummary }>());
@@ -219,10 +222,17 @@ export const SimpleBuildingCreator: React.FC = () => {
     toggleGrid();
   };
 
-  const handleSaveConfiguration = () => {
-    if (isSaveAndRunInProgress) {
+  /** Open the "Save and run studies" dialog, or say so if the engine doesn't answer (checked first, so no failed node is left behind). */
+  const handleSaveConfiguration = async () => {
+    if (isSaveAndRunInProgress || isCheckingEngineRef.current) {
       return;
     }
+
+    isCheckingEngineRef.current = true;
+    const engineStatus = await daylightApiService.checkEngineStatus();
+    isCheckingEngineRef.current = false;
+    setShowEngineUnavailable(engineStatus === 'unavailable');
+    if (engineStatus === 'unavailable') return;
 
     setShowSaveConfigDialog(true);
   };
@@ -658,7 +668,7 @@ export const SimpleBuildingCreator: React.FC = () => {
     onUndoLastPoint: () => {},
     onSaveConfiguration: () => {
       if (activeTab !== 'model') return;
-      handleSaveConfiguration();
+      void handleSaveConfiguration();
     },
     onImportConfiguration: () => {
       if (activeTab !== 'model') return;
@@ -909,6 +919,8 @@ export const SimpleBuildingCreator: React.FC = () => {
 
             {!buildingEdit.draft && !drawingState.isDrawing && <DesignGraphOverviewCard onOpenGraph={handleOpenDesignGraph} />}
 
+            {showEngineUnavailable && !simulationProgress && <EngineUnavailableNotice onDismiss={() => setShowEngineUnavailable(false)} />}
+
             {simulationProgress && <SimulationProgressCard daylight={simulationProgress.daylight} energy={simulationProgress.energy} onDismiss={() => setSimulationProgress(null)} onRetry={() => void handleSaveConfigurationConfirm(lastRunNameRef.current)} />}
 
           </>
@@ -967,6 +979,10 @@ export const SimpleBuildingCreator: React.FC = () => {
         onRunEnergySimulation={async (nodeId) => {
           const node = designExplorationService.getGraph().nodes.find(n => n.id === nodeId);
           if (!node || node.buildings.length === 0) return;
+          if (await daylightApiService.checkEngineStatus() === 'unavailable') {
+            designExplorationService.updateNode(nodeId, { energyRun: { status: 'failed', error: SIMULATIONS_UNAVAILABLE_MESSAGE } });
+            return;
+          }
           // Rerun the building the node's energy study simulated; older nodes without an id fall back to the first building.
           const building = node.buildings.find(b => b.id === node.energyRun?.buildingId) ?? node.buildings[0];
 

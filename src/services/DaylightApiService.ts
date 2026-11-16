@@ -2,6 +2,7 @@ import { BuildingModel, Point3D } from '../types/building';
 import { ensureHoneybeeCounterClockwise, getBuildingFacadeParameters } from './FacadeGeometry';
 import { buildSimulationFootprint, reverseEdgeValues, sharedFloorsByEdge, simplifyFootprint } from './SimulationFootprint';
 import { calculateSignedArea } from '../utils/geometry';
+import { probeEngine, type EngineStatus } from './EngineStatus';
 import {
   DaylightApiError,
   DaylightBuildRequestOptions,
@@ -50,6 +51,11 @@ class DaylightApiService {
       method: 'GET',
       signal
     });
+  }
+
+  /** Check whether the engine answers, with the cheapest request it serves (the locations list). */
+  checkEngineStatus(): Promise<EngineStatus> {
+    return probeEngine(`${this.baseUrl}/v1/locations`);
   }
 
   async getDefaultLocation(signal?: AbortSignal): Promise<string | undefined> {
