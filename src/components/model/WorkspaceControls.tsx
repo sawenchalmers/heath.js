@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Undo2, Redo2, MousePointer2, Pentagon, Move, RotateCw } from 'lucide-react';
 import type { WorkspaceEditor } from '../../hooks/useWorkspaceEditor';
 import type { BuildingEditDraft } from '../../hooks/useBuildingEditSession';
-import { centroid, isOrthogonalFootprint, rectangle } from '../../utils/footprintInteraction';
-import { validateFootprint } from '../../utils/buildingMetrics';
+import { centroid, rectangle } from '../../utils/footprintInteraction';
 import './workspace-editor.css';
 
 export function ExactField({ label, value, onCommit, reset = false }: { label: string; value: number; onCommit: (value: number) => void; reset?: boolean }) {
@@ -52,7 +51,6 @@ export function WorkspaceControls({ editor, draft, grid, onToggleGridSnap }: { e
   const drawing = s.tool === 'polygon' || s.tool === 'rectangle';
   const candidate = s.tool === 'polygon' && p.cursor ? [...p.points, p.cursor] : p.points;
   const path = candidate.map(v => `${v.x},${v.y}`).join(' ');
-  const valid = !validateFootprint(s.tool === 'rectangle' && s.points[0] && s.cursor ? rectangle(s.points[0], s.cursor) : s.points) && !(editor.ortho && s.tool === 'polygon' && !isOrthogonalFootprint(s.points));
   const activePoint = s.vertex ?? (drawing ? s.points.length - 1 : null);
   const dimensions = candidate.map((a, i) => {
     const b = candidate[(i + 1) % candidate.length];
@@ -80,7 +78,9 @@ export function WorkspaceControls({ editor, draft, grid, onToggleGridSnap }: { e
           onClick={e => { if (drawing) editor.finish(); else if (e.detail === 0) editor.selectVertex(i); }} />;
       })}
       {(drawing || s.dragging) && p.cursor && <span className={`editor-cursor ${s.snap ? 'is-snapped' : ''}`} style={{ left: p.cursor.x, top: p.cursor.y }} />}
-      {drawing && p.cursor && s.snap && <span className="editor-snap-label" style={{ left: p.cursor.x + 16, top: p.cursor.y + 12 }}>{s.snap.kind}</span>}
+      {drawing && p.cursor && s.snap && (s.snap.kind === 'Close' && s.error
+        ? <span className="editor-snap-label is-invalid" style={{ left: p.cursor.x + 16, top: p.cursor.y + 12 }}>Can't close</span>
+        : <span className="editor-snap-label" style={{ left: p.cursor.x + 16, top: p.cursor.y + 12 }}>{s.snap.kind}</span>)}
       {s.tool === 'reshape' && s.insertion && p.insertion && !s.dragging && <button className="editor-insert" aria-label="Insert point on edge" style={{ left: p.insertion.x, top: p.insertion.y }} onPointerDown={e => editor.handlePointer(e, 'vertex', s.insertion!.index, s.insertion!.point)} onClick={e => { if (e.detail === 0) editor.insert(s.insertion!.index, s.insertion!.point); }}>+</button>}
       {s.tool === 'move' && p.pivot && <button aria-label="Move building" className="editor-move-handle" style={{ left: p.pivot.x, top: p.pivot.y }} onPointerDown={e => editor.handlePointer(e, 'move')}><Move size={18} /></button>}
       {s.tool === 'rotate' && p.pivot && <>
@@ -96,7 +96,7 @@ export function WorkspaceControls({ editor, draft, grid, onToggleGridSnap }: { e
       {drawing ? <>
         <button aria-pressed={s.tool === 'polygon'} onClick={() => editor.activate('polygon')}>Polygon</button>
         <button aria-pressed={s.tool === 'rectangle'} onClick={() => editor.activate('rectangle')}>Rectangle</button>
-        <button disabled={!valid} className="editor-finish" onClick={editor.finish}>Finish</button>
+        <button disabled={Boolean(editor.finishError)} className="editor-finish" onClick={editor.finish}>Finish</button>
       </> : draft ? <>
         <button aria-label="Select tool" aria-pressed={s.tool === 'select'} onClick={() => editor.activate('select')}><MousePointer2 size={15} /></button>
         <button aria-pressed={s.tool === 'reshape'} onClick={() => editor.activate('reshape')}><Pentagon size={15} />Reshape</button>

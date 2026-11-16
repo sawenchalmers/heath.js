@@ -1,6 +1,9 @@
 import type { BuildingModel } from '../types/building';
 import type { DaylightRunSummary } from '../types/daylight';
+import type { EnergyRunMetadata } from '../types/designExploration';
 import { ensureHoneybeeCounterClockwise, getBuildingFacadeParameters } from './FacadeGeometry';
+import type { AdjacencyInput } from './BuildingAdjacency';
+import { buildSimulationFootprint, sharedFloorsByEdge } from './SimulationFootprint';
 
 const stableSerialize = (value: unknown): string => {
   if (Array.isArray(value)) {
@@ -32,7 +35,8 @@ const massingInput = (building: BuildingModel) => ({
   floorHeight: building.floorHeight
 });
 
-const facadeInput = (building: BuildingModel) => ({
+/** The target building in a daylight study: its raw massing and window parameters. */
+const daylightTargetInput = (building: BuildingModel) => ({
   ...massingInput(building),
   ...getBuildingFacadeParameters(building)
 });
@@ -41,15 +45,30 @@ export const createDaylightInputFingerprint = (
   target: BuildingModel,
   allBuildings: BuildingModel[]
 ): string => hash({
-  target: facadeInput(target),
+  target: daylightTargetInput(target),
   context: allBuildings
     .filter(building => building.id !== target.id)
     .map(massingInput)
     .sort((left, right) => stableSerialize(left).localeCompare(stableSerialize(right)))
 });
 
-export const createEnergyInputFingerprint = (building: BuildingModel): string => hash({
-  facade: facadeInput(building),
+/**
+ * The walls as the energy request sends them: the simplified, split footprint and the shared floors
+ * of each edge. Neighbours that touch no wall leave it unchanged, so moving them keeps cached results.
+ */
+const energyWallsInput = (building: BuildingModel, buildings: readonly AdjacencyInput[]) => {
+  const simulationFootprint = buildSimulationFootprint(building, buildings);
+  return {
+    footprint: simulationFootprint.footprint.map(point => [point.x, point.z]),
+    sharedFloorsByEdge: sharedFloorsByEdge(simulationFootprint) ?? null,
+  };
+};
+
+/** Fingerprint of everything an energy study depends on, including walls shared with `buildings`. */
+export const createEnergyInputFingerprint = (building: BuildingModel, buildings: readonly AdjacencyInput[]): string => hash({
+  walls: energyWallsInput(building, buildings),
+  massing: { floors: building.floors, floorHeight: building.floorHeight },
+  facade: getBuildingFacadeParameters(building),
   wallConstruction: building.wall_construction ?? null,
   floorConstruction: building.floor_construction ?? null,
   roofConstruction: building.roof_construction ?? null,
@@ -59,6 +78,17 @@ export const createEnergyInputFingerprint = (building: BuildingModel): string =>
   hvacSystem: building.hvac_system ?? null,
   naturalVentilation: building.natural_ventilation ?? false
 });
+
+/**
+ * Whether a saved energy result still matches the scene: the building it simulated still exists and
+ * its fingerprint, with the current neighbours, is unchanged. Results saved without a building id count as out of date,
+ * and so does any run that is not complete: a failed rerun keeps the previous run's fingerprint, because updates merge.
+ */
+export const isEnergyRunCurrent = (energyRun: EnergyRunMetadata | undefined, buildings: readonly BuildingModel[]): boolean => {
+  const simulated = buildings.find(building => building.id === energyRun?.buildingId);
+  return Boolean(simulated && energyRun?.status === 'complete' && energyRun.inputFingerprint
+    && energyRun.inputFingerprint === createEnergyInputFingerprint(simulated, buildings));
+};
 
 export const retainValidDaylightResults = (
   results: Record<string, DaylightRunSummary>,

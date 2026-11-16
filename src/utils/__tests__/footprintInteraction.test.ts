@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { centroid, rotateFootprint, translateFootprint, resolveSnap, nearestOnSegment } from '../footprintInteraction';
+import { centroid, rotateFootprint, translateFootprint, resolveSnap, nearestOnSegment, footprintCreationError, rectangle } from '../footprintInteraction';
 import { calculateBuildingMetrics, validateFootprint } from '../buildingMetrics';
 const points = [[0,0],[10,0],[10,4],[4,4],[4,10],[0,10]].map(([x,z]) => ({x,y:0,z}));
 const project = (p: {x:number;z:number}) => ({x:p.x*10,y:p.z*10});
@@ -47,5 +47,30 @@ describe('drawing constraints', () => {
     expect(snapRotation(radians(-38), {}) * 180 / Math.PI).toBeCloseTo(-40);
     expect(snapRotation(radians(38), { shiftKey: true }) * 180 / Math.PI).toBeCloseTo(45);
     expect(snapRotation(radians(38), { altKey: true }) * 180 / Math.PI).toBeCloseTo(38);
+  });
+});
+
+describe('whether a drawn footprint can become a building', () => {
+  const at = (x: number, z: number) => ({ x, y: 0, z });
+  const existing = [rectangle(at(0, 0), at(10, 8))];
+
+  it('allows a valid rectangle, including one touching an existing building along a wall', () => {
+    expect(footprintCreationError(rectangle(at(20, 0), at(30, 8)), existing, false)).toBeNull();
+    expect(footprintCreationError(rectangle(at(10, 2), at(18, 6)), existing, false)).toBeNull();
+  });
+
+  it('rejects a footprint that overlaps an existing building', () => {
+    expect(footprintCreationError(rectangle(at(8, 2), at(18, 6)), existing, false)).toMatch(/overlap another building/);
+  });
+
+  it('rejects a shape that is invalid on its own, before checking neighbours', () => {
+    expect(footprintCreationError([at(20, 0), at(30, 0)], existing, false)).toMatch(/at least three vertices/);
+  });
+
+  it('requires a closing right angle only when orthogonal drawing is on', () => {
+    const slanted = [at(20, 0), at(30, 0), at(30, 8), at(21, 9)];
+    expect(footprintCreationError(slanted, existing, false)).toBeNull();
+    expect(footprintCreationError(slanted, existing, true)).toMatch(/close at 90°/);
+    expect(footprintCreationError(rectangle(at(20, 0), at(30, 8)), existing, true)).toBeNull();
   });
 });

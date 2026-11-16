@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { daylightApiService } from '../DaylightApiService';
 import type { BuildingData } from '../../types/building';
 import type { DaylightStudyRequest, DaylightStudyResult } from '../../types/daylight';
@@ -76,6 +76,72 @@ describe('DaylightApiService sensor point mapping', () => {
     }, 0) / 2;
 
     expect(signedArea).toBeGreaterThan(0);
+  });
+
+  // Visual explanation of these tests (group 6):
+  // https://claude.ai/artifact/G3TizxVrAig6HLK3U61E8Y (private Claude artifact; share it before others can open it)
+  describe('walls shared with neighbouring buildings', () => {
+    // A 3-storey neighbour touching the middle of the east wall (x = 4, z = 1–3), and a 1-storey one.
+    const neighbour = (floors: number) => ({
+      id: 'neighbour',
+      points: [{ x: 4, y: 0, z: 1 }, { x: 8, y: 0, z: 1 }, { x: 8, y: 0, z: 3 }, { x: 4, y: 0, z: 3 }],
+      floors,
+      floorHeight: 3,
+    });
+
+    it('splits the footprint and sends the shared floors of the shared piece of wall', () => {
+      const building = makeBuilding();
+      const request = daylightApiService.buildRequestFromBuilding(building, { neighbours: [building, neighbour(3)] });
+
+      expect(request.room.footprint_coordinates).toEqual([[0, 0], [4, 0], [4, 1], [4, 3], [4, 4], [0, 4]]);
+      expect(request.room.shared_floors_by_edge).toEqual([[], [], [1, 2, 3], [], [], []]);
+      expect(request.room).not.toHaveProperty('wwr_by_edge');
+    });
+
+    it('sends only the floors a lower neighbour covers, so the backend keeps windows above it', () => {
+      const building = makeBuilding();
+      const request = daylightApiService.buildRequestFromBuilding(building, {
+        neighbours: [building, neighbour(1)],
+        selected_floor_number: 3,
+      });
+
+      expect(request.room.shared_floors_by_edge).toEqual([[], [], [1], [], [], []]);
+    });
+
+    it('leaves requests without shared walls unchanged', () => {
+      const request = daylightApiService.buildRequestFromBuilding(makeBuilding(), { neighbours: [] });
+
+      expect(request.room.footprint_coordinates).toEqual([[0, 0], [4, 0], [4, 4], [0, 4]]);
+      expect(request.room).not.toHaveProperty('shared_floors_by_edge');
+    });
+
+    it('reverses the shared floors together with the footprint when retrying', async () => {
+      const building = makeBuilding();
+      // Touching the south end of the east wall, so the shared wall changes position when the points are
+      // reversed (a neighbour in the middle of the wall would land on the same index by coincidence).
+      const cornerNeighbour = { ...neighbour(3), points: [{ x: 4, y: 0, z: 0 }, { x: 8, y: 0, z: 0 }, { x: 8, y: 0, z: 1 }, { x: 4, y: 0, z: 1 }] };
+      const sentRequests: DaylightStudyRequest[] = [];
+      const startStudy = vi.spyOn(daylightApiService, 'startStudy').mockImplementation(async (request) => {
+        sentRequests.push(request);
+        throw new Error(sentRequests.length === 1 ? 'Ground boundary condition cannot have an aperture' : 'stop after retry');
+      });
+
+      await expect(daylightApiService.runStudyForBuilding(building, { neighbours: [building, cornerNeighbour] })).rejects.toThrow('stop after retry');
+      startStudy.mockRestore();
+
+      // Each wall, named by its two corners, must keep its shared floors after the reversal.
+      const floorsByWall = (request: DaylightStudyRequest) => {
+        const points = request.room.footprint_coordinates;
+        return Object.fromEntries(points.map((point, i) => {
+          const next = points[(i + 1) % points.length];
+          return [[point.join(','), next.join(',')].sort().join(' – '), request.room.shared_floors_by_edge![i]];
+        }));
+      };
+      expect(sentRequests).toHaveLength(2);
+      expect(sentRequests[1].room.footprint_coordinates).toEqual([...sentRequests[0].room.footprint_coordinates].reverse());
+      expect(floorsByWall(sentRequests[1])).toEqual(floorsByWall(sentRequests[0]));
+      expect(floorsByWall(sentRequests[1])['4,0 – 4,1']).toEqual([1, 2, 3]);
+    });
   });
 
   it('builds the direct HBJSON attachment URL', () => {

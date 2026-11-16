@@ -1,4 +1,5 @@
 import type { Point3D } from '../types/building';
+import { validateFootprint } from './buildingMetrics';
 
 export type ScreenPoint = { x: number; y: number };
 export const centroid = (points: readonly Point3D[]): Point3D => {
@@ -66,3 +67,12 @@ export const isOrthogonalFootprint = (points: readonly Point3D[]) => points.ever
   const q = points[(i + 1) % points.length];
   return Math.abs(p.x - q.x) < 1e-8 || Math.abs(p.z - q.z) < 1e-8;
 });
+
+/** Why a drawn footprint can't become a building (invalid shape, overlap, or not closing at 90° in orthogonal mode), or null if it can. */
+export const footprintCreationError = (
+  candidate: readonly Point3D[],
+  otherFootprints: readonly (readonly Point3D[])[],
+  requireOrthogonal: boolean
+): string | null =>
+  validateFootprint(candidate, otherFootprints)
+  ?? (requireOrthogonal && !isOrthogonalFootprint(candidate) ? 'Align the final point with the start to close at 90°.' : null);

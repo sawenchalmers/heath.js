@@ -1,7 +1,7 @@
 /**
  * EnergyApiService
  * ----------------
- * Client for the honeybeeDaylight backend's energy simulation endpoints.
+ * Client for the heath-engine backend's energy simulation endpoints.
  * Mirrors the DaylightApiService pattern.
  *
  * Backend endpoints (to be implemented — see ENERGY_SIMULATION.md):
@@ -11,7 +11,9 @@
  */
 
 import { BuildingModel } from '../types/building';
-import { ensureHoneybeeCounterClockwise, getBuildingFacadeParameters } from './FacadeGeometry';
+import type { AdjacencyInput } from './BuildingAdjacency';
+import { getBuildingFacadeParameters } from './FacadeGeometry';
+import { buildSimulationFootprint, sharedFloorsByEdge } from './SimulationFootprint';
 
 // ── Config ────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,8 @@ export interface EnergyStudyOptions {
   hvac_system?: string;
   natural_ventilation?: boolean;
   location: string;
+  /** Other buildings, used to find walls shared with the simulated building. */
+  neighbours?: readonly AdjacencyInput[];
 }
 
 export interface EnergyStudyQueued {
@@ -108,10 +112,14 @@ class EnergyApiService {
 
   // ── Room geometry builder ────────────────────────────────────────────────
 
-  private buildRoomFromBuilding(building: BuildingModel) {
-    const coords = ensureHoneybeeCounterClockwise(building.points)
-      .map(point => [point.x, point.z] as [number, number]);
+  private buildRoomFromBuilding(building: BuildingModel, neighbours: readonly AdjacencyInput[]) {
+    // Same simplified, split footprint as the window preview and daylight, so edge n is the same wall everywhere.
+    const simulationFootprint = buildSimulationFootprint(building, neighbours);
+    const coords = simulationFootprint.footprint.map(point => [point.x, point.z] as [number, number]);
     const facade = getBuildingFacadeParameters(building);
+    // The backend makes shared walls adiabatic and leaves out their windows, storey by storey;
+    // undefined when nothing is shared, so other requests stay unchanged.
+    const sharedFloors = sharedFloorsByEdge(simulationFootprint);
 
     return {
       footprint_coordinates: coords,
@@ -119,6 +127,7 @@ class EnergyApiService {
       floors: building.floors ?? 1,
       orientation_offset: 0,
       wwr: facade.wwr,
+      ...(sharedFloors ? { shared_floors_by_edge: sharedFloors } : {}),
       window_width: facade.windowWidth,
       window_height: facade.windowHeight,
       window_spacing: facade.windowSpacing,
@@ -135,7 +144,7 @@ class EnergyApiService {
     options: EnergyStudyOptions,
     signal?: AbortSignal
   ): Promise<EnergyStudyQueued> {
-    const room = this.buildRoomFromBuilding(building);
+    const room = this.buildRoomFromBuilding(building, options.neighbours ?? []);
 
     // Resolve constructions: prefer explicitly passed options, fall back to building fields
     const constructions: EnergyStudyConstructions = {

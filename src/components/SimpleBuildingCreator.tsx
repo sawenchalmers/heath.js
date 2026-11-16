@@ -16,6 +16,7 @@ import { SaveConfigurationDialog } from './dialogs/SaveConfigurationDialog';
 import { ImportConfigDialog } from './dialogs/ImportConfigDialog';
 import { DaylightResultsDialog } from './dialogs/DaylightResultsDialog';
 import { Tabs, TabContent } from './ui/Tabs';
+import { AppVersionBadge } from './ui/AppVersionBadge';
 import { WeatherAndLocationTab } from './WeatherAndLocationTab';
 import { BuildingConfig, BuildingData, BuildingModel, DEFAULT_BUILDING_COLOR } from '../types/building';
 import type { CameraType, CameraView } from '../core/ThreeJSCore';
@@ -28,7 +29,8 @@ import { energyApiService } from '../services/EnergyApiService';
 import { daylightVisualizationService, getOverlayDatasetsForResults } from '../services/DaylightVisualizationService';
 import { getEPSMConstructionOptions, getCachedEPSMOptions, computePortfolioEmbodiedCarbon, calculateEmbodiedCarbon, resolveEnergyConstructions } from '../services/EPSMService';
 import { DaylightRunSummary } from '../types/daylight';
-import { createEnergyInputFingerprint, retainValidDaylightResults } from '../services/SimulationFingerprint';
+import { createEnergyInputFingerprint, isEnergyRunCurrent, retainValidDaylightResults } from '../services/SimulationFingerprint';
+import { energyRunAfterRerunError } from '../services/EnergyRunUpdates';
 import { DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { SimulationProgressCard, type SimulationTaskState } from './model/SimulationProgressCard';
 import { DaylightLegend } from './model/DaylightLegend';
@@ -358,6 +360,10 @@ export const SimpleBuildingCreator: React.FC = () => {
     daylightVisualizationService.clear(scene);
 
     try {
+      // Dev aid (#28): skip daylight so energy can run on its own. Off by default; start with VITE_SKIP_DAYLIGHT=true to enable.
+      if (import.meta.env.DEV && import.meta.env.VITE_SKIP_DAYLIGHT === 'true') {
+        throw new Error('Daylight skipped (VITE_SKIP_DAYLIGHT is set).');
+      }
       const resultsById = await simulationCoordinator.runDaylightStudySet({
         buildings: snapshotBuildings,
         location: resolvedLocation,
@@ -459,8 +465,8 @@ export const SimpleBuildingCreator: React.FC = () => {
     ]);
 
     energyAbortControllerRef.current?.abort();
-    energyAbortControllerRef.current = new AbortController();
-    let energyResult: Awaited<ReturnType<typeof energyApiService.runEnergyStudy>> | null = null;
+    const energyAbortController = new AbortController();
+    energyAbortControllerRef.current = energyAbortController;
 
     const daylightPromise = runDaylightSimulation(targetBuilding, name, runSnapshot, { location });
     const energyPromise = (async () => {
@@ -468,20 +474,17 @@ export const SimpleBuildingCreator: React.FC = () => {
       setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'queued', message: 'Submitting energy study…' } } : previous);
       const coordinated = await simulationCoordinator.runEnergyStudy({
         building: targetBuilding,
+        buildings: runSnapshot,
         location,
         epsm: epsmOpts,
-        signal: energyAbortControllerRef.current.signal,
+        signal: energyAbortController.signal,
         callbacks: {
           onQueued: () => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'queued', message: 'Waiting for an energy worker…' } } : previous),
           onStatusUpdate: status => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'running', message: status.stage ?? status.status } } : previous),
-          onComplete: (result) => {
-            energyResult = result;
-            setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'complete', message: 'Energy results are ready.' } } : previous);
-          },
+          onComplete: () => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'complete', message: 'Energy results are ready.' } } : previous),
           onError: error => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'failed', message: error.message } } : previous),
         },
       });
-      energyResult = coordinated.result;
       return coordinated.result;
     })().catch(error => {
       const message = error instanceof Error ? error.message : 'Energy simulation failed.';
@@ -491,8 +494,12 @@ export const SimpleBuildingCreator: React.FC = () => {
 
     const [, energySettled] = await Promise.allSettled([daylightPromise, energyPromise]);
     setIsSaveAndRunInProgress(false);
+    // Aborted by whatever took over (reinstating another configuration, or an energy rerun in the design graph):
+    // the current node is no longer this run's, so leave it alone, whether energy failed or had already finished (#28).
+    if (energyAbortController.signal.aborted) return;
     const node = designExplorationService.getCurrentNode();
-    if (node && energySettled.status === 'fulfilled' && energyResult) {
+    if (node && energySettled.status === 'fulfilled') {
+      const energyResult = energySettled.value;
       const resolvedConstructions = resolveEnergyConstructions(epsmOpts, {
         wall: targetBuilding.wall_construction, floor: targetBuilding.floor_construction,
         roof: targetBuilding.roof_construction, window: targetBuilding.window_construction,
@@ -512,7 +519,7 @@ export const SimpleBuildingCreator: React.FC = () => {
       }) : null;
       designExplorationService.updateNode(node.id, {
         energyRun: {
-          status: 'complete', inputFingerprint: createEnergyInputFingerprint(targetBuilding),
+          status: 'complete', buildingId: targetBuilding.id, inputFingerprint: createEnergyInputFingerprint(targetBuilding, runSnapshot),
           studyId: energyResult.study_id, monthlyHeatBalance: energyResult.monthly_heat_balance ?? undefined,
         },
         metrics: {
@@ -525,7 +532,7 @@ export const SimpleBuildingCreator: React.FC = () => {
       });
     } else if (node && energySettled.status === 'rejected') {
       designExplorationService.updateNode(node.id, {
-        energyRun: { status: 'failed', error: energySettled.reason instanceof Error ? energySettled.reason.message : 'Energy simulation failed.' },
+        energyRun: { status: 'failed', buildingId: targetBuilding.id, error: energySettled.reason instanceof Error ? energySettled.reason.message : 'Energy simulation failed.' },
       });
     }
   };
@@ -806,6 +813,7 @@ export const SimpleBuildingCreator: React.FC = () => {
         tabs={tabs} 
         activeTab={activeTab} 
         onTabChange={handleTabChange}
+        trailing={<AppVersionBadge />}
       />
       
       <TabContent className="relative">
@@ -959,7 +967,8 @@ export const SimpleBuildingCreator: React.FC = () => {
         onRunEnergySimulation={async (nodeId) => {
           const node = designExplorationService.getGraph().nodes.find(n => n.id === nodeId);
           if (!node || node.buildings.length === 0) return;
-          const building = node.buildings[0];
+          // Rerun the building the node's energy study simulated; older nodes without an id fall back to the first building.
+          const building = node.buildings.find(b => b.id === node.energyRun?.buildingId) ?? node.buildings[0];
 
           // Fetch location and EPSM options in parallel before submitting
           const [location, epsmOpts] = await Promise.all([
@@ -969,7 +978,9 @@ export const SimpleBuildingCreator: React.FC = () => {
           if (!location) return;
 
           energyAbortControllerRef.current?.abort();
-          energyAbortControllerRef.current = new AbortController();
+          // Kept locally: the ref is replaced when another run starts, and the catch below needs this run's signal.
+          const rerunAbortController = new AbortController();
+          energyAbortControllerRef.current = rerunAbortController;
 
           designExplorationService.updateNode(nodeId, {
             energyRun: { status: 'queued', stage: 'Submitting…' }
@@ -990,6 +1001,7 @@ export const SimpleBuildingCreator: React.FC = () => {
                 hvac_system:      building.hvac_system      ?? 'Default HVAC',
                 natural_ventilation: building.natural_ventilation ?? false,
                 location,
+                neighbours: node.buildings,
               },
               {
                 onQueued: (studyId) => designExplorationService.updateNode(nodeId, {
@@ -1017,7 +1029,8 @@ export const SimpleBuildingCreator: React.FC = () => {
                   designExplorationService.updateNode(nodeId, {
                     energyRun: {
                       status: 'complete',
-                      inputFingerprint: createEnergyInputFingerprint(building),
+                      buildingId: building.id,
+                      inputFingerprint: createEnergyInputFingerprint(building, node.buildings),
                       studyId: result.study_id,
                       monthlyHeatBalance: result.monthly_heat_balance ?? undefined,
                     },
@@ -1034,14 +1047,12 @@ export const SimpleBuildingCreator: React.FC = () => {
                   energyRun: { status: 'failed', error: err.message }
                 }),
               },
-              energyAbortControllerRef.current.signal
+              rerunAbortController.signal
             );
           } catch (err) {
-            if (err instanceof Error && err.message !== 'Energy study aborted') {
-              designExplorationService.updateNode(nodeId, {
-                energyRun: { status: 'failed', error: (err as Error).message }
-              });
-            }
+            designExplorationService.updateNode(nodeId, {
+              energyRun: energyRunAfterRerunError(err, rerunAbortController.signal.aborted)
+            });
           }
         }}
       />
@@ -1055,14 +1066,12 @@ export const SimpleBuildingCreator: React.FC = () => {
           energyResults={(() => {
             const node = designExplorationService.getCurrentNode();
             if (!node) return undefined;
-            const simulatedBuildingId = node.buildings[0]?.id;
-            const currentSimulatedBuilding = buildings.find(building => building.id === simulatedBuildingId);
-            const isCurrent = Boolean(
-              currentSimulatedBuilding &&
-              node.energyRun?.inputFingerprint &&
-              node.energyRun.inputFingerprint === createEnergyInputFingerprint(currentSimulatedBuilding)
-            );
-            if (!isCurrent) {
+            // A run in progress shows its status, even before it has a fingerprint for the current scene.
+            const status = node.energyRun?.status;
+            if (status === 'queued' || status === 'running') {
+              return { status };
+            }
+            if (!isEnergyRunCurrent(node.energyRun, buildings)) {
               return { status: 'idle' as const };
             }
             return {

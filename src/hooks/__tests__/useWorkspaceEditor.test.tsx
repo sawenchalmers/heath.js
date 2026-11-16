@@ -114,6 +114,21 @@ describe('workspace interaction ownership',()=>{
     expect(h.result.current.editor.state.error).toMatch(/reverted/);
     expect(h.result.current.editor.canUndo).toBe(false);h.cleanup();
   });
+  it('lets buildings touch but reverts edits that overlap a neighbour',()=>{
+    const h=setup();
+    act(()=>{h.result.current.manager.createBuilding(footprint.map(p=>({...p,x:p.x+10})),config)});
+    expect(h.result.current.manager.getBuildings()).toHaveLength(2);
+    const before=h.result.current.manager.captureSnapshot();
+    h.start(1);h.move({x:8,y:0,z:-5});h.up({x:8,y:0,z:-5});
+    expect(h.result.current.manager.captureSnapshot()).toEqual(before);
+    expect(h.result.current.editor.state.error).toMatch(/overlap another building.*reverted/i);
+    act(()=>h.result.current.editor.setCentroid('x',3));
+    expect(h.result.current.manager.captureSnapshot()).toEqual(before);
+    expect(h.result.current.editor.state.error).toMatch(/overlap another building/i);
+    expect(h.result.current.editor.canUndo).toBe(false);
+    expect(()=>h.result.current.manager.createBuilding(footprint.map(p=>({...p,x:p.x+4})),config)).toThrow(/overlap another building/i);
+    h.cleanup();
+  });
   it('keeps rotation and property changes independent, preserves facade counts, and scopes deletion',()=>{
     const h=setup();
     act(()=>h.result.current.manager.createBuilding(footprint.map(p=>({...p,x:p.x+20})),config));

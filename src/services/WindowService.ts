@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BuildingModel } from '../types/building';
 import { getThemeColorAsHex } from '../utils/themeColors';
 import { cloneBuildingModel } from '../utils/buildingModel';
+import { buildSimulationFootprints } from './SimulationFootprint';
 import {
   buildFacadeLayout,
   getBuildingFacadeParameters,
@@ -216,9 +217,12 @@ export class WindowService {
     const counts = [0, 0, 0], contextCounts = [0, 0, 0];
     let total = 0;
     this.renderedWindowCounts.clear();
+    // Shared walls depend on every building, so footprints are recomputed for all of them on each rebuild.
+    const footprints = buildSimulationFootprints([...this.buildings.values()].map(record => record.building));
     for (const [buildingId, record] of this.buildings) {
-      const layout = buildFacadeLayout(record.building.points, record.building.floors,
-        record.building.floorHeight, getBuildingFacadeParameters(record.building));
+      const { footprint, edges } = footprints.get(buildingId)!;
+      const layout = buildFacadeLayout(footprint, record.building.floors, record.building.floorHeight,
+        getBuildingFacadeParameters(record.building), edges.map(edge => edge.sharedFloors));
       const apertures = layout.apertures.slice(0, Math.max(0, this.maxWindows - total));
       const context = this.editingBuildingId !== null && buildingId !== this.editingBuildingId;
       const meshes = context ? this.contextMeshes : primary;

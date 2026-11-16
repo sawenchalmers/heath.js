@@ -749,7 +749,7 @@ export const useBuildingManager = (
 
   const createBuilding = useCallback((points: Point3D[], config: BuildingConfig) => {
     if (!scene) return undefined;
-    const error = validateFootprint(points);
+    const error = validateFootprint(points, buildingsRef.current.map(building => building.points));
     if (error) throw new Error(error);
     const mesh = new BuildingService(scene).createBuilding(points, config);
     return addBuilding(mesh, points, config);
@@ -759,8 +759,8 @@ export const useBuildingManager = (
     if (!scene) return [];
 
     const ids = new Set<string>();
-    models.forEach(model => {
-      const error = validateFootprint(model.points);
+    models.forEach((model, index) => {
+      const error = validateFootprint(model.points, models.slice(0, index).map(other => other.points));
       if (error) throw new Error(error);
       if (ids.has(model.id)) throw new Error('Building IDs must be unique.');
       if (!Number.isInteger(model.floors) || model.floors < 1 || !Number.isFinite(model.floorHeight) || model.floorHeight <= 0) throw new Error('Invalid building height.');
