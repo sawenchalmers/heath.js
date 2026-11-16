@@ -59,7 +59,8 @@ export const SimpleBuildingCreator: React.FC = () => {
   const [showDaylightResultsDialog, setShowDaylightResultsDialog] = useState(false);
   const [activeResultsBuildingId, setActiveResultsBuildingId] = useState<string | null>(null);
   const [isSaveAndRunInProgress, setIsSaveAndRunInProgress] = useState(false);
-  const [showEngineUnavailable, setShowEngineUnavailable] = useState(false);
+  /** Set when "Run studies" found no engine; a new value remounts the notice, restarting its timer. Null hides it. */
+  const [engineUnavailableNoticeKey, setEngineUnavailableNoticeKey] = useState<number | null>(null);
   const isCheckingEngineRef = useRef(false);
   const [simulationProgress, setSimulationProgress] = useState<{ daylight: SimulationTaskState; energy: SimulationTaskState } | null>(null);
   const [daylightResultsByBuildingId, setDaylightResultsByBuildingId] = useState<Record<string, DaylightRunSummary>>({});
@@ -231,7 +232,7 @@ export const SimpleBuildingCreator: React.FC = () => {
     isCheckingEngineRef.current = true;
     const engineStatus = await daylightApiService.checkEngineStatus();
     isCheckingEngineRef.current = false;
-    setShowEngineUnavailable(engineStatus === 'unavailable');
+    setEngineUnavailableNoticeKey(engineStatus === 'unavailable' ? Date.now() : null);
     if (engineStatus === 'unavailable') return;
 
     setShowSaveConfigDialog(true);
@@ -919,7 +920,7 @@ export const SimpleBuildingCreator: React.FC = () => {
 
             {!buildingEdit.draft && !drawingState.isDrawing && <DesignGraphOverviewCard onOpenGraph={handleOpenDesignGraph} />}
 
-            {showEngineUnavailable && !simulationProgress && <EngineUnavailableNotice onDismiss={() => setShowEngineUnavailable(false)} />}
+            {engineUnavailableNoticeKey !== null && !simulationProgress && <EngineUnavailableNotice key={engineUnavailableNoticeKey} onDismiss={() => setEngineUnavailableNoticeKey(null)} />}
 
             {simulationProgress && <SimulationProgressCard daylight={simulationProgress.daylight} energy={simulationProgress.energy} onDismiss={() => setSimulationProgress(null)} onRetry={() => void handleSaveConfigurationConfirm(lastRunNameRef.current)} />}
 

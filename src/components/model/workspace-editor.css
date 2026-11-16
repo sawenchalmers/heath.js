@@ -49,6 +49,10 @@
 .editor-rotation-ring-svg { position:absolute; transform:translate(-50%,-50%); width:176px; height:176px; overflow:visible; }
 @media(min-width:801px) {
  .model-workspace[data-editing=true] .model-status-bar { left:calc((100% - 304px)/2); }
+ .model-workspace[data-editing=true] .model-progress-card,.model-workspace[data-editing=true] .model-engine-notice { right:316px; }
+}
+@media(min-width:801px) and (max-width:1023px) {
+ .model-workspace[data-editing=true] .model-progress-card,.model-workspace[data-editing=true] .model-engine-notice { right:300px; }
 }
 @media(max-width:800px) {
  .model-workspace .model-tool-rail { left:8px; top:112px; bottom:auto; max-height:calc(65vh - 172px); overflow-y:auto; transform:none; }
