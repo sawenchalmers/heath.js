@@ -18,8 +18,10 @@ on:
 permissions:
   contents: read
 
-# One run per branch at a time. A newer push to a pull request cancels its older run;
-# releases on main always finish, one after another.
+# One run per branch at a time. A newer push to a pull request cancels its older run.
+# On main a running release always finishes, but only one more can wait: if several
+# merges land while one runs, the newest waiting run replaces the older ones. Its image
+# includes their changes, but their versions get no image or tag of their own.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
