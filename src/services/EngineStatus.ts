@@ -8,10 +8,12 @@ export type EngineProbeOutcome = { ok: boolean; contentType: string | null } | '
 const PROBE_TIMEOUT_MS = 5000;
 
 /**
- * Decide from a probe's outcome whether the engine is available. Only a successful JSON reply counts:
- * a network error, a proxy error (502/503/504, or the Vite proxy's empty 500) and a 200 with HTML
- * all mean unavailable. The last is what the production nginx sends without an engine, since unknown
- * paths fall back to the app's index.html.
+ * Decide whether the engine is up, from the answer to the check request.
+ * Only an OK answer containing JSON counts as up. Everything else counts as down:
+ * - no answer at all (nothing running at that address)
+ * - an error status, e.g. 502 or 503 from a proxy that couldn't reach the engine
+ * - an OK answer with a web page instead of JSON: some servers answer every unknown
+ *   address with the app's start page, which would otherwise look like a working engine
  */
 export const engineStatusFromProbe = (outcome: EngineProbeOutcome): EngineStatus => {
   if (outcome === 'network-error' || !outcome.ok) return 'unavailable';

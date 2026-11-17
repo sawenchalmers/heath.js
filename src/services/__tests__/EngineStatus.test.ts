@@ -14,7 +14,7 @@ describe('deciding whether the engine is available', () => {
     }
   });
 
-  it("counts a 200 with HTML as unavailable: nginx's fallback to index.html when there is no engine", () => {
+  it('counts a 200 with HTML as unavailable: a server falling back to index.html when there is no engine', () => {
     expect(engineStatusFromProbe({ ok: true, contentType: 'text/html' })).toBe('unavailable');
     expect(engineStatusFromProbe({ ok: true, contentType: null })).toBe('unavailable');
   });
