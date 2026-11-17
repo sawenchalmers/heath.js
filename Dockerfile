@@ -22,7 +22,7 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: serve ──────────────────────────────────────────────────────────
-FROM nginx:1.28-alpine
+FROM nginx:1.30-alpine
 
 # Our site configuration, as a template: at start-up the image fills in the
 # container's DNS servers (because of the ENV line) and writes the result over
