@@ -170,9 +170,11 @@ html, body, #root {
   bottom: 58px;
 }
 
-.model-progress-card {
-  right: 320px;
-  top: 12px;
+/* Top right of the 3D view; moved left of the building panel while one is open (workspace-editor.css). They share the corner and never show together. */
+.model-progress-card,
+.model-engine-notice {
+  right: 12px;
+  top: 16px;
 }
 
 .model-graph-overview {
@@ -187,8 +189,7 @@ html, body, #root {
     width: 288px;
   }
 
-  .model-daylight-legend,
-  .model-progress-card {
+  .model-daylight-legend {
     right: 12px;
   }
 
@@ -239,7 +240,8 @@ html, body, #root {
     min-width: 210px;
   }
 
-  .model-progress-card {
+  .model-progress-card,
+  .model-engine-notice {
     top: 8px;
     right: 8px;
     width: min(296px, calc(100vw - 16px));
