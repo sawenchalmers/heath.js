@@ -61,7 +61,6 @@ export const SimpleBuildingCreator: React.FC = () => {
   const [isSaveAndRunInProgress, setIsSaveAndRunInProgress] = useState(false);
   /** Set when "Run studies" found no engine; a new value remounts the notice, restarting its timer. Null hides it. */
   const [engineUnavailableNoticeKey, setEngineUnavailableNoticeKey] = useState<number | null>(null);
-  const isCheckingEngineRef = useRef(false);
   const [simulationProgress, setSimulationProgress] = useState<{ daylight: SimulationTaskState; energy: SimulationTaskState } | null>(null);
   const [daylightResultsByBuildingId, setDaylightResultsByBuildingId] = useState<Record<string, DaylightRunSummary>>({});
   const analysisCacheRef = useRef(new Map<string, { id: string; result: DaylightRunSummary }>());
@@ -223,17 +222,10 @@ export const SimpleBuildingCreator: React.FC = () => {
     toggleGrid();
   };
 
-  /** Open the "Save and run studies" dialog, or say so if the engine doesn't answer (checked first, so no failed node is left behind). */
-  const handleSaveConfiguration = async () => {
-    if (isSaveAndRunInProgress || isCheckingEngineRef.current) {
+  const handleSaveConfiguration = () => {
+    if (isSaveAndRunInProgress) {
       return;
     }
-
-    isCheckingEngineRef.current = true;
-    const engineStatus = await daylightApiService.checkEngineStatus();
-    isCheckingEngineRef.current = false;
-    setEngineUnavailableNoticeKey(engineStatus === 'unavailable' ? Date.now() : null);
-    if (engineStatus === 'unavailable') return;
 
     setShowSaveConfigDialog(true);
   };
@@ -457,6 +449,15 @@ export const SimpleBuildingCreator: React.FC = () => {
   }, [scene, buildings, daylightResultsByBuildingId, setSceneAppearanceMode, showDaylightAnalysis]);
 
   const handleSaveConfigurationConfirm = async (name: string) => {
+    // Check the engine before the run's node is created, so no failed node is left behind. Confirming the
+    // name and Retry both start here. An earlier run's progress card is closed so the notice is visible.
+    if (await daylightApiService.checkEngineStatus() === 'unavailable') {
+      setSimulationProgress(null);
+      setEngineUnavailableNoticeKey(Date.now());
+      return;
+    }
+    setEngineUnavailableNoticeKey(null);
+
     const runSnapshot = captureSnapshot();
     const targetBuilding = runSnapshot.find(building => building.id === selectedBuildingRef.current?.id)
       ?? runSnapshot[0];
@@ -669,7 +670,7 @@ export const SimpleBuildingCreator: React.FC = () => {
     onUndoLastPoint: () => {},
     onSaveConfiguration: () => {
       if (activeTab !== 'model') return;
-      void handleSaveConfiguration();
+      handleSaveConfiguration();
     },
     onImportConfiguration: () => {
       if (activeTab !== 'model') return;
