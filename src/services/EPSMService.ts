@@ -16,7 +16,7 @@
 import { DEFAULT_FACADE_PARAMETERS } from './FacadeGeometry';
 import { calculateBuildingMetrics } from '../utils/buildingMetrics';
 
-const EPSM_BASE = (import.meta.env.VITE_EPSM_BASE_URL as string | undefined) ?? `${import.meta.env.BASE_URL}api/epsm`;
+const EPSM_BASE = (import.meta.env.VITE_EPSM_BASE_URL as string | undefined) || `${import.meta.env.BASE_URL}api/epsm`;
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
