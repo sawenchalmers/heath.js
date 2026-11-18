@@ -23,7 +23,7 @@ RUN npm run build
 
 # ── Stage 2: serve ──────────────────────────────────────────────────────────
 # nginx-unprivileged: the same nginx, running as an ordinary user (uid 101) and listening on
-# 8080, so it works in containers that drop all capabilities, as the VM's slots do (#40).
+# 8080, so it works in containers that drop all capabilities, as the VM's Quadlet services do (#40).
 FROM nginxinc/nginx-unprivileged:1.30-alpine
 
 # Our site configuration, as a template: at start-up the image fills in the
@@ -36,5 +36,5 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Documentation only: the container listens on port 8080. Which port the server
-# exposes it on is decided when the container is started (the VM's Quadlet slot).
+# exposes it on is decided when the container is started (the VM's Quadlet unit file).
 EXPOSE 8080
