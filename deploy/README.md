@@ -48,13 +48,15 @@ Done once (they start out with an nginx placeholder). As an administrator on the
 ## Updates
 
 - `podman auto-update` checks the registry for a newer image for every container labelled for it (both services are), pulls it and restarts the container. If the new container **fails to start**, it rolls back to the previous image by itself. A release that starts but misbehaves (e.g. a blank page) is not rolled back, so check Heath after an update, and roll back by hand if needed (below).
-- It is run by the system timer `podman-auto-update.timer`, once a day by default. The timer covers every such container on the VM, so agree changes to its schedule with whoever else runs containers there.
+- It is run by the system timer `podman-auto-update.timer`. Podman's default is once a day, but the VM overrides the schedule with a drop-in file in `/etc/systemd/system/podman-auto-update.timer.d/` (at the time of writing: every 5 minutes). The timer covers every such container on the VM, so a change to its schedule affects all of them. Change the schedule in that existing drop-in rather than adding another: drop-ins are read in alphabetical order, so a new one could silently override it.
   ```bash
-  systemctl status podman-auto-update.timer --no-pager   # enabled? when does it run next?
+  systemctl cat podman-auto-update.timer --no-pager      # the schedule, including drop-ins
+  systemctl list-timers podman-auto-update.timer --no-pager   # when it runs next
+  systemctl status podman-auto-update.timer --no-pager   # enabled?
   sudo podman auto-update --dry-run                      # what would be updated now
   sudo podman auto-update                                # update now, without waiting
   ```
-- A new version appears after a merge to `main` once GitHub has published it (a few minutes) and the timer has run.
+- A new version appears after a merge to `main` once GitHub has published it (a few minutes) and the timer has next run.
 
 ## Rolling back
 
