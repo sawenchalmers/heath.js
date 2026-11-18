@@ -19,8 +19,8 @@ import {
   SensorGridConfig
 } from '../types/daylight';
 
-const DEFAULT_DEV_BASE_URL = '/api/daylight';
-const DEFAULT_PROD_BASE_URL = '/api/daylight';
+// Under the app's base path (`/` in dev, `/heath/` when deployed), so it stays within the app's site.
+const DEFAULT_BASE_URL = `${import.meta.env.BASE_URL}api/daylight`;
 const DEFAULT_DIRECT_FALLBACK_URLS: string[] = [];
 const DEFAULT_SENSOR_GRID: SensorGridConfig = { x_dim: 0.5, y_dim: 0.5, offset: 0.75 };
 
@@ -30,8 +30,7 @@ class DaylightApiService {
   private defaultLocationId: string | null | undefined;
 
   constructor(baseUrl?: string) {
-    const defaultBaseUrl = import.meta.env.DEV ? DEFAULT_DEV_BASE_URL : DEFAULT_PROD_BASE_URL;
-    const configuredBaseUrl = baseUrl || import.meta.env.VITE_DAYLIGHT_API_BASE_URL || defaultBaseUrl;
+    const configuredBaseUrl = baseUrl || import.meta.env.VITE_DAYLIGHT_API_BASE_URL || DEFAULT_BASE_URL;
     this.baseUrl = configuredBaseUrl.replace(/\/$/, '');
 
     const configuredFallbacks = (import.meta.env.VITE_DAYLIGHT_API_FALLBACK_URLS as string | undefined)
@@ -504,7 +503,7 @@ class DaylightApiService {
       const method = (init.method || 'GET').toUpperCase();
 
       // In dev, if proxy returns 5xx, retry direct API targets to bypass proxy-layer failures.
-      if (import.meta.env.DEV && this.baseUrl === DEFAULT_DEV_BASE_URL && response.status >= 500) {
+      if (import.meta.env.DEV && this.baseUrl === DEFAULT_BASE_URL && response.status >= 500) {
         for (const fallbackBaseUrl of this.directFallbackBaseUrls) {
           const normalizedFallback = fallbackBaseUrl.replace(/\/$/, '');
           const fallbackUrl = `${normalizedFallback}${path}`;

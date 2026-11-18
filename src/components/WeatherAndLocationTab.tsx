@@ -279,9 +279,9 @@ export const WeatherAndLocationTab: React.FC = () => {
     try {
       console.log(`Loading weather data for ${location.city}`);
       
-      // Always route through the /api/climate/ nginx proxy to avoid CORS.
-      // In dev the Vite proxy handles it; in prod the portal nginx config does.
-      const zipUrl = location.zipUrl.replace('https://climate.onebuilding.org', '/api/climate');
+      // Always route through <base path>api/climate/ to avoid CORS: the Vite proxy forwards it in dev,
+      // the container's nginx in production. Under the base path, so it works when served under /heath/.
+      const zipUrl = location.zipUrl.replace('https://climate.onebuilding.org', `${import.meta.env.BASE_URL}api/climate`);
       
       // Use EPWParser's cached remote ZIP method
       const data = await EPWParser.parseEPWFromRemoteZip(zipUrl, location.epwFileName);
