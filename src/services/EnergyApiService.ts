@@ -17,8 +17,8 @@ import { buildSimulationFootprint, sharedFloorsByEdge } from './SimulationFootpr
 
 // ── Config ────────────────────────────────────────────────────────────────
 
-const DEFAULT_DEV_BASE_URL = '/api/daylight';
-const DEFAULT_PROD_BASE_URL = '/api/daylight';
+// Under the app's base path (`/` in dev, `/heath/` when deployed), so it stays within the app's site.
+const DEFAULT_BASE_URL = `${import.meta.env.BASE_URL}api/daylight`;
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 120; // 6 minutes max
 
@@ -91,8 +91,7 @@ class EnergyApiService {
   private readonly baseUrl: string;
 
   constructor(baseUrl?: string) {
-    const defaultBaseUrl = import.meta.env.DEV ? DEFAULT_DEV_BASE_URL : DEFAULT_PROD_BASE_URL;
-    const configured = baseUrl || import.meta.env.VITE_DAYLIGHT_API_BASE_URL || defaultBaseUrl;
+    const configured = baseUrl || import.meta.env.VITE_DAYLIGHT_API_BASE_URL || DEFAULT_BASE_URL;
     this.baseUrl = configured.replace(/\/$/, '');
   }
 

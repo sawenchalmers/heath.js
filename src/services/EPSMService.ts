@@ -5,8 +5,8 @@
  * Base URL: https://epsm.chalmers.se
  *
  * All read endpoints are publicly accessible — no authentication required.
- * In development the Vite proxy rewrites /api/epsm → https://epsm.chalmers.se
- * to avoid CORS issues.
+ * The browser calls it through <base path>api/epsm (/api/epsm in dev, /heath/api/epsm when deployed),
+ * which the Vite proxy in dev and the container's nginx in production forward, to avoid CORS issues.
  *
  * Embodied carbon calculation is done client-side:
  *   GWP (kg CO₂e) = construction.gwp_kgco2e_per_m2 × surface_area_m2
@@ -16,7 +16,7 @@
 import { DEFAULT_FACADE_PARAMETERS } from './FacadeGeometry';
 import { calculateBuildingMetrics } from '../utils/buildingMetrics';
 
-const EPSM_BASE = (import.meta.env.VITE_EPSM_BASE_URL as string | undefined) ?? '/api/epsm';
+const EPSM_BASE = (import.meta.env.VITE_EPSM_BASE_URL as string | undefined) || `${import.meta.env.BASE_URL}api/epsm`;
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

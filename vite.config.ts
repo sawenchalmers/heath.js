@@ -9,6 +9,16 @@ export default defineConfig(({ mode }) => {
 
   const basePath = env.VITE_BASE_PATH || '/';
 
+  // The app calls its APIs under its base path (`<base>api/climate`, …; see the services), so the
+  // proxies listen there too: /api/… in dev, /heath/api/… for `npm run preview` of a production build.
+  const apiPath = (name: string) => `${basePath}api/${name}`;
+  /** Forward `<base>api/<name>/x` to `<target>/x`, as the container's nginx does in production. */
+  const forward = (name: string, target: string) => ({
+    target,
+    changeOrigin: true,
+    rewrite: (path: string) => path.slice(apiPath(name).length),
+  });
+
   return {
     plugins: [react(), buildInfoPlugin()],
     base: basePath,
@@ -20,46 +30,29 @@ export default defineConfig(({ mode }) => {
     // Proxy configuration to handle CORS issues
     server: {
       proxy: {
-        '/api/climate': {
-          target: 'https://climate.onebuilding.org',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/climate/, ''),
-          configure: (proxy, _options) => {
-            proxy.on('error', (err, _req, _res) => {
+        [apiPath('climate')]: {
+          ...forward('climate', 'https://climate.onebuilding.org'),
+          configure: (proxy) => {
+            proxy.on('error', (err) => {
               console.log('proxy error', err);
             });
-            proxy.on('proxyReq', (_proxyReq, req, _res) => {
+            proxy.on('proxyReq', (_proxyReq, req) => {
               console.log('Sending Request to the Target:', req.method, req.url);
             });
-            proxy.on('proxyRes', (proxyRes, req, _res) => {
+            proxy.on('proxyRes', (proxyRes, req) => {
               console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
             });
           },
         },
-        '/api/daylight': {
-          target: daylightProxyTarget,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/daylight/, ''),
-        },
-        '/api/epsm': {
-          target: 'https://epsm.chalmers.se',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/epsm/, ''),
-        }
+        [apiPath('daylight')]: forward('daylight', daylightProxyTarget),
+        [apiPath('epsm')]: forward('epsm', 'https://epsm.chalmers.se'),
       }
     },
     preview: {
       proxy: {
-        '/api/daylight': {
-          target: daylightProxyTarget,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/daylight/, ''),
-        },
-        '/api/epsm': {
-          target: 'https://epsm.chalmers.se',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/epsm/, ''),
-        }
+        [apiPath('climate')]: forward('climate', 'https://climate.onebuilding.org'),
+        [apiPath('daylight')]: forward('daylight', daylightProxyTarget),
+        [apiPath('epsm')]: forward('epsm', 'https://epsm.chalmers.se'),
       }
     }
   };
