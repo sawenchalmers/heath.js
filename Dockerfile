@@ -1,11 +1,11 @@
-# The heath.js container image: the built app, served by nginx.
+# The heath.js container image: the built app, served by nginx as a non-root user on port 8080.
 #
 # Two stages. The first has Node and builds the app; the second only has nginx
 # and the built files. Only the second stage ends up in the published image, so
 # it carries no Node, no node_modules and no source code.
 #
 # Build locally:  docker build -t heath.js .
-# Run locally:    docker run --rm -p 8080:80 heath.js   then open http://localhost:8080
+# Run locally:    docker run --rm -p 8080:8080 heath.js   then open http://localhost:8080/heath/
 
 # ── Stage 1: build ──────────────────────────────────────────────────────────
 FROM node:24-alpine AS build
@@ -22,7 +22,9 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: serve ──────────────────────────────────────────────────────────
-FROM nginx:1.30-alpine
+# nginx-unprivileged: the same nginx, running as an ordinary user (uid 101) and listening on
+# 8080, so it works in containers that drop all capabilities, as the VM's Quadlet services do (#40).
+FROM nginxinc/nginx-unprivileged:1.30-alpine
 
 # Our site configuration, as a template: at start-up the image fills in the
 # container's DNS servers (because of the ENV line) and writes the result over
@@ -33,6 +35,6 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 # The built app, from stage 1, into the folder nginx serves.
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Documentation only: the container listens on port 80. Which port the server
-# exposes it on is decided when the container is started (Compose, 40.1.3).
-EXPOSE 80
+# Documentation only: the container listens on port 8080. Which port the server
+# exposes it on is decided when the container is started (the VM's Quadlet unit file).
+EXPOSE 8080
