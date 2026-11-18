@@ -22,12 +22,13 @@ VM     ─ podman auto-update  ─▶ pulls a new :latest and restarts both serv
 - Run as a non-root user and listen on **port 8080** (it uses `nginx-unprivileged`).
 - Serve the app under `/heath/`, whether or not the front server strips the `/heath` prefix.
 - Hold **no secrets**: the image is public. The engine's API key will be given to `heath-backend` on the VM, e.g. as a Podman secret (#45), never built into the image.
+- Be able to write `/etc/nginx/conf.d` when it starts: the site configuration is filled in from a template and written there at start-up. If the units are ever made read-only (`ReadOnly=true`), give that folder a writable mount (e.g. `Tmpfs=/etc/nginx/conf.d`). Otherwise nginx quietly serves its default welcome page instead of Heath, while the container looks healthy.
 
 ## Pointing the services at heath.js
 
 Done once (they start out with an nginx placeholder). As an administrator on the VM:
 
-1. In both `/etc/containers/systemd/heath-frontend.container` and `heath-backend.container`, set:
+1. In both `/etc/containers/systemd/heath-frontend.container` and `heath-backend.container`, set the same image (always change the two files together, so both run the same version):
    ```ini
    Image=ghcr.io/sawenchalmers/heath.js:latest
    ```
@@ -46,7 +47,7 @@ Done once (they start out with an nginx placeholder). As an administrator on the
 
 ## Updates
 
-- `podman auto-update` checks the registry for a newer image for every container labelled for it (both services are), pulls it and restarts the container. **If the new container fails to start, it rolls back to the previous image by itself.**
+- `podman auto-update` checks the registry for a newer image for every container labelled for it (both services are), pulls it and restarts the container. If the new container **fails to start**, it rolls back to the previous image by itself. A release that starts but misbehaves (e.g. a blank page) is not rolled back, so check Heath after an update, and roll back by hand if needed (below).
 - It is run by the system timer `podman-auto-update.timer`, once a day by default. The timer covers every such container on the VM, so agree changes to its schedule with whoever else runs containers there.
   ```bash
   systemctl status podman-auto-update.timer --no-pager   # enabled? when does it run next?
@@ -57,11 +58,17 @@ Done once (they start out with an nginx placeholder). As an administrator on the
 
 ## Rolling back
 
-To run an older version (every release stays in the registry under its version):
+Every published version stays in the registry under its number; a version whose release was skipped (when several merges land while a release is running) has no image. List them with `sudo podman search --list-tags ghcr.io/sawenchalmers/heath.js`, or on the package's page on GitHub.
+
+To run an older version:
 
 1. In both unit files, pin the version, e.g. `Image=ghcr.io/sawenchalmers/heath.js:0.2.2`.
 2. `sudo systemctl daemon-reload && sudo systemctl restart heath-frontend.service heath-backend.service`.
-3. When the problem is fixed and released, set `Image=` back to `:latest` the same way.
+3. When the problem is fixed and released, set `Image=` back to `:latest` in both files, then fetch the new image before restarting. Podman reuses an image it already has, so without this step it would start the old, broken `:latest` again:
+   ```bash
+   sudo podman pull ghcr.io/sawenchalmers/heath.js:latest
+   sudo systemctl daemon-reload && sudo systemctl restart heath-frontend.service heath-backend.service
+   ```
 
 While pinned, auto-update leaves that version alone (it only follows the tag in `Image=`).
 
