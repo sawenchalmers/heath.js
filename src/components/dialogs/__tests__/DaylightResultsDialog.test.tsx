@@ -8,7 +8,7 @@ const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplem
 
 vi.mock('../../../services/DaylightApiService', () => ({
   daylightApiService: {
-    getStudyModelDownloadUrl: vi.fn().mockReturnValue('/api/daylight/v1/studies/study-1/model.hbjson')
+    getStudyModelDownloadUrl: vi.fn().mockReturnValue('/proxy/daylight/v1/studies/study-1/model.hbjson')
   }
 }));
 

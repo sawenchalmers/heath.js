@@ -146,7 +146,7 @@ describe('DaylightApiService sensor point mapping', () => {
 
   it('builds the direct HBJSON attachment URL', () => {
     expect(daylightApiService.getStudyModelDownloadUrl('study/one')).toBe(
-      '/api/daylight/v1/studies/study%2Fone/model.hbjson'
+      '/proxy/daylight/v1/studies/study%2Fone/model.hbjson'
     );
   });
 

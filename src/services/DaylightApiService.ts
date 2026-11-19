@@ -20,7 +20,7 @@ import {
 } from '../types/daylight';
 
 // Under the app's base path (`/` in dev, `/heath/` when deployed), so it stays within the app's site.
-const DEFAULT_BASE_URL = `${import.meta.env.BASE_URL}api/daylight`;
+const DEFAULT_BASE_URL = `${import.meta.env.BASE_URL}proxy/daylight`;
 const DEFAULT_DIRECT_FALLBACK_URLS: string[] = [];
 const DEFAULT_SENSOR_GRID: SensorGridConfig = { x_dim: 0.5, y_dim: 0.5, offset: 0.75 };
 

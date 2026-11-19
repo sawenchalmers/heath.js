@@ -18,7 +18,7 @@ import { buildSimulationFootprint, sharedFloorsByEdge } from './SimulationFootpr
 // ── Config ────────────────────────────────────────────────────────────────
 
 // Under the app's base path (`/` in dev, `/heath/` when deployed), so it stays within the app's site.
-const DEFAULT_BASE_URL = `${import.meta.env.BASE_URL}api/daylight`;
+const DEFAULT_BASE_URL = `${import.meta.env.BASE_URL}proxy/daylight`;
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 120; // 6 minutes max
 
