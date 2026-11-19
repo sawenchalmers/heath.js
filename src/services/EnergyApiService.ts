@@ -14,11 +14,12 @@ import { BuildingModel } from '../types/building';
 import type { AdjacencyInput } from './BuildingAdjacency';
 import { getBuildingFacadeParameters } from './FacadeGeometry';
 import { buildSimulationFootprint, sharedFloorsByEdge } from './SimulationFootprint';
+import { proxyUrl } from './proxyUrl';
 
 // ── Config ────────────────────────────────────────────────────────────────
 
-// Under the app's base path (`/` in dev, `/heath/` when deployed), so it stays within the app's site.
-const DEFAULT_BASE_URL = `${import.meta.env.BASE_URL}proxy/daylight`;
+// The engine, forwarded under the app's own base path (see proxiedServices.ts).
+const DEFAULT_BASE_URL = proxyUrl('daylight');
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 120; // 6 minutes max
 

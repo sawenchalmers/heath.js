@@ -15,8 +15,9 @@
 
 import { DEFAULT_FACADE_PARAMETERS } from './FacadeGeometry';
 import { calculateBuildingMetrics } from '../utils/buildingMetrics';
+import { proxyUrl } from './proxyUrl';
 
-const EPSM_BASE = (import.meta.env.VITE_EPSM_BASE_URL as string | undefined) || `${import.meta.env.BASE_URL}proxy/epsm`;
+const EPSM_BASE = (import.meta.env.VITE_EPSM_BASE_URL as string | undefined) || proxyUrl('epsm');
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
