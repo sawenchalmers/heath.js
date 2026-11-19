@@ -94,6 +94,6 @@ Gone through finding by finding with sawenchalmers on 2026-11-19:
 | N16 | #84 Clear feedback for incompatible import files |
 | N17 | #85 A data format for saving a session |
 | N18 | Text size in #90 (current size stays the default) and #91 (first-time setup); asked of the testing group (#57) |
-| Earlier findings | #86 Tab behaviour in all dialogs; #87 Form & Massing section; #88 Façade section; #89 rendering check |
+| Earlier findings | #41 dialog behaviour, incl. Tab (#86 merged into it); #87 Form & Massing section, incl. the storeys (#62 merged into it); #88 Façade section; #89 rendering check; #36 the building panel as a whole |
 
 Found during the walkthrough by sawenchalmers: #73 (closing the progress card leaves Run studies unresponsive).
