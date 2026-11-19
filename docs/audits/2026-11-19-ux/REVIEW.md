@@ -53,7 +53,7 @@ Covered this time: deleting one of two buildings and undoing it, form labels and
 
 ### The earlier reviews, item by item
 
-From the September "premium" review (`docs/audits/2026-09-06-premium/REVIEW.md`), its follow-up (`2026-09-06-seamless-editor`), and the backlog `docs/UX_IMPROVEMENTS.md`:
+From the September "premium" review (`docs/audits/2026-09-06-premium/REVIEW.md`), its follow-up (`2026-09-06-seamless-editor`), and the backlog `docs/UX_IMPROVEMENTS.md` (since moved to #92):
 
 | Earlier finding | Now |
 |---|---|
