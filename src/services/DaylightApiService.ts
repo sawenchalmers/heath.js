@@ -3,6 +3,7 @@ import { ensureHoneybeeCounterClockwise, getBuildingFacadeParameters } from './F
 import { buildSimulationFootprint, reverseEdgeValues, sharedFloorsByEdge, simplifyFootprint } from './SimulationFootprint';
 import { calculateSignedArea } from '../utils/geometry';
 import { probeEngine, type EngineStatus } from './EngineStatus';
+import { proxyUrl } from './proxyUrl';
 import {
   DaylightApiError,
   DaylightBuildRequestOptions,
@@ -19,8 +20,8 @@ import {
   SensorGridConfig
 } from '../types/daylight';
 
-// Under the app's base path (`/` in dev, `/heath/` when deployed), so it stays within the app's site.
-const DEFAULT_BASE_URL = `${import.meta.env.BASE_URL}api/daylight`;
+// The engine, forwarded under the app's own base path (see proxiedServices.ts).
+const DEFAULT_BASE_URL = proxyUrl('daylight');
 const DEFAULT_DIRECT_FALLBACK_URLS: string[] = [];
 const DEFAULT_SENSOR_GRID: SensorGridConfig = { x_dim: 0.5, y_dim: 0.5, offset: 0.75 };
 
