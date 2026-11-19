@@ -47,6 +47,17 @@ Done once (it starts out with an nginx placeholder). As an administrator on the 
    ```
 4. Open Heath through the front page and check the version badge.
 
+### heath-backend's placeholder
+
+`heath-backend` should run its placeholder image until Heath has server-side parts. If it still points at heath.js (as in the first set-up, before the forwarding moved to `heath-frontend`), switch it back, **after** a heath.js version that uses `/proxy/` (0.2.5 or later) is live:
+
+1. In `/etc/containers/systemd/heath-backend.container`, set:
+   ```ini
+   Image=docker.io/nginxinc/nginx-unprivileged:stable-alpine
+   ```
+2. `sudo systemctl daemon-reload && sudo systemctl restart heath-backend.service`
+3. Check: `sudo podman ps --format "{{.Names}}  {{.Image}}"` shows the placeholder for `heath-backend`, and Heath's weather and construction choices still work through the front page.
+
 ## Updates
 
 - `podman auto-update` checks the registry for a newer image for every container labelled for it (`heath-frontend` is), pulls it and restarts the container. If the new container **fails to start**, it rolls back to the previous image by itself. A release that starts but misbehaves (e.g. a blank page) is not rolled back, so check Heath after an update, and roll back by hand if needed (below).
