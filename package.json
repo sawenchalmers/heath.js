@@ -2,7 +2,7 @@
   "name": "heath.js",
   "private": true,
   "license": "UNLICENSED",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "version": "node scripts/citation-version.mjs"
   },
   "dependencies": {
     "@types/d3": "^7.4.3",

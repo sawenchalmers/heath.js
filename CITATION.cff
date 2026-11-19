@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+message: "If you use heath.js, please cite it as below."
+type: software
+title: heath.js
+abstract: >-
+  A web-based 3D building design tool for teaching and exploring computational
+  sustainable design and building sustainability assessment in an urban context.
+authors:
+  - family-names: Säwén
+    given-names: Toivo
+    orcid: "https://orcid.org/0000-0001-7989-3021"
+  - family-names: Somanath
+    given-names: Sanjay
+    orcid: "https://orcid.org/0000-0001-8561-1588"
+  - family-names: Hollberg
+    given-names: Alexander
+    orcid: "https://orcid.org/0000-0002-9756-2362"
+repository-code: "https://github.com/sawenchalmers/heath.js"
+license: MIT
+# version and date-released are set by `npm version` (scripts/citation-version.mjs)
+version: 0.2.6
+date-released: "2026-11-19"
+keywords:
+  - building performance
+  - sustainable design
+  - life cycle assessment
+  - education
+  - three.js
+references:
+  # Heath UI, the Grasshopper plugin heath.js grew from
+  - type: software
+    title: Heath
+    abstract: >-
+      A Grasshopper plugin that provides a UI for life cycle building
+      performance assessment in the Rhino environment.
+    authors:
+      - family-names: Säwén
+        given-names: Toivo
+        orcid: "https://orcid.org/0000-0001-7989-3021"
+      - family-names: Yan
+        given-names: Jieming
+      - family-names: Mjörnell
+        given-names: Isac
+      - family-names: Eriksson
+        given-names: Lina
+    repository-code: "https://github.com/sawenchalmers/heath"
+    license: GPL-3.0
