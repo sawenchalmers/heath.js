@@ -44,4 +44,4 @@ references:
       - family-names: Eriksson
         given-names: Lina
     repository-code: "https://github.com/sawenchalmers/heath"
-    license: GPL-3.0
+    license: GPL-3.0-or-later
