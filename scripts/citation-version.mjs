@@ -1,5 +1,5 @@
-// Copies package.json's version, and today's date, into CITATION.cff. Run by npm as the
-// "version" script, so `npm version patch` (or minor) bumps both; CI checks they match.
+// Copies package.json's version, and today's date, into CITATION.cff. Run by npm as the "version"
+// script, so `npm version patch --no-git-tag-version` (or minor) bumps both; CI checks they match.
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const { version } = JSON.parse(readFileSync('package.json', 'utf8'));

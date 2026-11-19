@@ -61,8 +61,8 @@ jobs:
             exit 1
           fi
           echo "Version $version is higher than ${latest:-any release so far}."
-          if ! grep -qx "version: $version" CITATION.cff; then
-            echo "::error::CITATION.cff's version doesn't match package.json's $version. Bump with npm version, which updates both."
+          if ! grep -qxF "version: $version" CITATION.cff; then
+            echo "::error::CITATION.cff's version doesn't match package.json's $version. Bump with npm version patch --no-git-tag-version (or minor), which updates both."
             exit 1
           fi
 
