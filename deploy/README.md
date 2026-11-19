@@ -14,7 +14,7 @@ VM     ─ podman auto-update  ─▶ pulls a new :latest and restarts heath-fro
 ```
 
 - **The front page** handles HTTPS, login and access, and forwards requests to the two services below. It is maintained separately and not described here. Who may use Heath is managed on the front page.
-- **Two Podman Quadlet services** are set up for Heath: `heath-frontend` and `heath-backend`. Their unit files (`.container`) are in `/etc/containers/systemd/`. They are hardened: each runs in its own user namespace with all capabilities dropped and no new privileges, and only listens on the VM itself.
+- **Two Podman Quadlet services** are set up for Heath: `heath-frontend` and `heath-backend`. Their unit files (`.container`) are in `/etc/containers/systemd/`, but they are managed by the front page's set-up (`SB-Chalmers/ace-apps`), which overwrites the VM's copies: make lasting changes there. An edit on the VM only lasts until the next set-up run. They are hardened: each runs in its own user namespace with all capabilities dropped and no new privileges, and only listens on the VM itself.
 - **`heath-frontend` runs the heath.js image.** It serves the app and forwards everything under `/proxy/` to outside services: EPSM and the climate site now, the engine later (#59), with the engine's API key as a Podman secret (#45).
 - **`heath-backend` is reserved for Heath's own server-side parts,** such as the database for saving projects (#56). Until those exist it runs a placeholder; nothing in the app calls `/heath/api/…`.
 - **GitHub never connects to the VM.** The VM pulls the public image itself.
@@ -61,7 +61,7 @@ Done once (it starts out with an nginx placeholder). As an administrator on the 
 ## Updates
 
 - `podman auto-update` checks the registry for a newer image for every container labelled for it (`heath-frontend` is), pulls it and restarts the container. If the new container **fails to start**, it rolls back to the previous image by itself. A release that starts but misbehaves (e.g. a blank page) is not rolled back, so check Heath after an update, and roll back by hand if needed (below).
-- It is run by the system timer `podman-auto-update.timer`. Podman's default is once a day, but the VM overrides the schedule with a drop-in file in `/etc/systemd/system/podman-auto-update.timer.d/` (at the time of writing: every 5 minutes). The timer covers every such container on the VM, so a change to its schedule affects all of them. Change the schedule in that existing drop-in rather than adding another: drop-ins are read in alphabetical order, so a new one could silently override it.
+- It is run by the system timer `podman-auto-update.timer`. Podman's default is once a day, but the VM overrides the schedule with a drop-in file in `/etc/systemd/system/podman-auto-update.timer.d/` (at the time of writing: every 5 minutes), set by the front page's set-up. The timer covers every such container on the VM, so a change to its schedule affects all of them. Change the schedule in the front page's set-up rather than by adding another drop-in: drop-ins are read in alphabetical order, so a new one could silently override it.
   ```bash
   systemctl cat podman-auto-update.timer --no-pager      # the schedule, including drop-ins
   systemctl list-timers podman-auto-update.timer --no-pager   # when it runs next
@@ -85,7 +85,7 @@ To run an older version:
    sudo systemctl daemon-reload && sudo systemctl restart heath-frontend.service
    ```
 
-While pinned, auto-update leaves that version alone (it only follows the tag in `Image=`).
+While pinned, auto-update leaves that version alone (it only follows the tag in `Image=`). The pin lasts until the next set-up run.
 
 ## Logs
 
