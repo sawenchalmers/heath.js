@@ -318,3 +318,8 @@ added as authors in CITATION.cff.
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+The Heath butterfly icons in `icons/` are not covered by the MIT License. They are
+modified from [Butterfly](https://www.flaticon.com/free-icon/butterfly_9421272) by
+juicy_fish from [Flaticon](https://www.flaticon.com/), used under the Flaticon License,
+and will be replaced by original icons (#71).
