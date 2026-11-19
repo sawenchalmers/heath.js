@@ -287,6 +287,34 @@ heath.js builds on several earlier tools developed for teaching at Chalmers:
    development continues. The full commit history of the web tool has been
    kept.
 
+## Use of AI
+
+Since the fork to heath.js in October 2026, development has been assisted by AI,
+using Claude Code with these models:
+
+* Claude Opus 5.5 (October 2026 onwards)
+
+The developers review all AI-assisted changes before they are merged. AI-assisted
+commits name the model as a co-author, and AI-written issues start with a note
+saying so.
+
+## Citing
+
+If you use heath.js in your work, please cite it. The citation details are in
+[CITATION.cff](CITATION.cff); GitHub's "Cite this repository" button, in the
+repository's sidebar, gives them as APA or BibTeX.
+
+Please cite the version you used, since heath.js changes with every release. You
+can find it next to the Heath butterfly in the app ("heath.js v. 0.2.6") or among
+the [release tags](https://github.com/sawenchalmers/heath.js/tags). For example, for
+version 0.2.6 in APA style:
+
+> Säwén, T., Somanath, S., & Hollberg, A. (2026). *heath.js* (Version 0.2.6)
+> [Computer software]. https://github.com/sawenchalmers/heath.js
+
+Contributors with a substantial contribution, beyond a single pull request, are
+added as authors in CITATION.cff.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
