@@ -1,24 +1,25 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
 import react from '@vitejs/plugin-react';
 import { buildInfoPlugin } from './buildInfoPlugin';
+import { PROXIED_SERVICES, proxyPathUnder, type ProxiedService } from './src/services/proxiedServices';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const daylightProxyTarget = env.VITE_DAYLIGHT_PROXY_TARGET || 'http://localhost:8000';
-
   const basePath = env.VITE_BASE_PATH || '/';
 
-  // The app reaches outside services under its base path (`<base>proxy/climate`, …; see the services),
-  // so the proxies listen there too: /proxy/… in dev, /heath/proxy/… for `npm run preview` of a production
-  // build. (`<base>api/` is reserved for Heath's own backend.)
-  const proxyPath = (name: string) => `${basePath}proxy/${name}`;
-  /** Forward `<base>proxy/<name>/x` to `<target>/x`, as the container's nginx does in production. */
-  const forward = (name: string, target: string) => ({
-    target,
-    changeOrigin: true,
-    rewrite: (path: string) => path.slice(proxyPath(name).length),
-  });
+  // Where each forwarded service goes in dev and preview; the engine's address is a setting.
+  const targets = { ...PROXIED_SERVICES, daylight: env.VITE_DAYLIGHT_PROXY_TARGET || 'http://localhost:8000' };
+
+  // One forward per service in src/services/proxiedServices.ts, under the app's base path, as the
+  // container's nginx does in production: `<base>proxy/<name>/x` → `<target>/x` (/proxy/… in dev,
+  // /heath/proxy/… for `npm run preview` of a production build). `<base>api/` is Heath's own backend.
+  const forwards: Record<string, ProxyOptions> = Object.fromEntries(
+    (Object.keys(targets) as ProxiedService[]).map(service => {
+      const path = proxyPathUnder(basePath, service);
+      return [path, { target: targets[service], changeOrigin: true, rewrite: (url: string) => url.slice(path.length) }];
+    }),
+  );
 
   return {
     plugins: [react(), buildInfoPlugin()],
@@ -28,33 +29,8 @@ export default defineConfig(({ mode }) => {
     },
     // Configure static asset handling
     assetsInclude: ['**/*.3dm'],
-    // Proxy configuration to handle CORS issues
-    server: {
-      proxy: {
-        [proxyPath('climate')]: {
-          ...forward('climate', 'https://climate.onebuilding.org'),
-          configure: (proxy) => {
-            proxy.on('error', (err) => {
-              console.log('proxy error', err);
-            });
-            proxy.on('proxyReq', (_proxyReq, req) => {
-              console.log('Sending Request to the Target:', req.method, req.url);
-            });
-            proxy.on('proxyRes', (proxyRes, req) => {
-              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
-            });
-          },
-        },
-        [proxyPath('daylight')]: forward('daylight', daylightProxyTarget),
-        [proxyPath('epsm')]: forward('epsm', 'https://epsm.chalmers.se'),
-      }
-    },
-    preview: {
-      proxy: {
-        [proxyPath('climate')]: forward('climate', 'https://climate.onebuilding.org'),
-        [proxyPath('daylight')]: forward('daylight', daylightProxyTarget),
-        [proxyPath('epsm')]: forward('epsm', 'https://epsm.chalmers.se'),
-      }
-    }
+    // Proxies to outside services, which the browser can't call directly (no CORS headers)
+    server: { proxy: forwards },
+    preview: { proxy: forwards },
   };
 });
