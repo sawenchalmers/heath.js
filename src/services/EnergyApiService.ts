@@ -83,8 +83,6 @@ export interface EnergyStudyResult {
 }
 
 export interface EnergyRunCallbacks {
-  /** Not called since v1 (no queue ids); removed with the run flow in #25 step 25.4. */
-  onQueued?: (studyId: string) => void;
   onStatusUpdate?: (status: EnergyStudyStatus) => void;
   onComplete?: (result: EnergyStudyResult) => void;
   onError?: (error: Error) => void;
@@ -148,17 +146,15 @@ export class EnergyApiService {
     };
   }
 
-  /** The v1 request for one building: its room, and the energy options (constructions fall back to the building's own). */
+  /**
+   * The v1 request for one building: its room and the energy options. The constructions must be EPSM names
+   * (the caller resolves them, see resolveEnergyConstructions); the engine rejects unknown names.
+   */
   buildEnergyRequest(building: BuildingModel, options: EnergyStudyOptions): EnergyStudyRequest {
     return {
       room: this.buildRoomFromBuilding(building, options.neighbours ?? []),
       energy: {
-        constructions: {
-          wall:   options.constructions?.wall   || building.wall_construction   || 'Default Wall',
-          floor:  options.constructions?.floor  || building.floor_construction  || 'Default Floor',
-          roof:   options.constructions?.roof   || building.roof_construction   || 'Default Roof',
-          window: options.constructions?.window || building.window_construction || 'Default Window',
-        },
+        constructions: options.constructions,
         building_program: options.building_program ?? building.building_program ?? 'Office',
         natural_ventilation: options.natural_ventilation ?? building.natural_ventilation ?? false,
       },

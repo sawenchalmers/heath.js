@@ -102,10 +102,11 @@ describe('energy request options', () => {
     expect(request.energy).not.toHaveProperty('hvac_system');
   });
 
-  it('falls back to the building\'s own constructions and program', () => {
+  it('sends the constructions it is given, and falls back to the building\'s own program', () => {
+    // The caller resolves EPSM names (resolveEnergyConstructions); the building's own fields aren't used for them.
     const building = { ...makeBuilding(), wall_construction: 'Brick', building_program: 'Retail' };
-    const request = energyApiService.buildEnergyRequest(building, { constructions: { wall: '', floor: 'F', roof: 'R', window: 'W' } });
-    expect(request.energy.constructions.wall).toBe('Brick');
+    const request = energyApiService.buildEnergyRequest(building, options);
+    expect(request.energy.constructions).toEqual(options.constructions);
     expect(request.energy.building_program).toBe('Retail');
   });
 });

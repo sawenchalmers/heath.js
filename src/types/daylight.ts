@@ -68,15 +68,6 @@ export interface DaylightApiError {
   message: string;
 }
 
-export interface DaylightLocationItem {
-  id: string;
-  label: string;
-}
-
-export interface DaylightLocationsResponse {
-  locations: DaylightLocationItem[];
-}
-
 export interface DaylightSensorPoint {
   x: number;
   y: number;

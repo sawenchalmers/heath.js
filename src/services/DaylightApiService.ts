@@ -10,7 +10,6 @@ import {
   DaylightApiError,
   DaylightBuildRequestOptions,
   DaylightContextBuildingInput,
-  DaylightLocationsResponse,
   DaylightQuality,
   DaylightRunOptions,
   DaylightRunSummary,
@@ -27,40 +26,15 @@ const DAYLIGHT_QUALITY: DaylightQuality = import.meta.env.VITE_DAYLIGHT_QUALITY 
 
 class DaylightApiService {
   private readonly baseUrl: string;
-  private defaultLocationId: string | null | undefined;
 
   constructor(baseUrl?: string) {
     const configuredBaseUrl = baseUrl || import.meta.env.VITE_DAYLIGHT_API_BASE_URL || DEFAULT_BASE_URL;
     this.baseUrl = configuredBaseUrl.replace(/\/$/, '');
-    this.defaultLocationId = undefined;
-  }
-
-  // Removed in #25 step 25.4: v1 has no locations (the engine uses its default weather file).
-  async listLocations(signal?: AbortSignal): Promise<DaylightLocationsResponse> {
-    return this.request<DaylightLocationsResponse>('/v1/locations', {
-      method: 'GET',
-      signal
-    });
   }
 
   /** Check whether the engine answers: v1's health check, which needs no key and also checks the job queue. */
   checkEngineStatus(): Promise<EngineStatus> {
     return probeEngine(`${this.baseUrl}/health`);
-  }
-
-  async getDefaultLocation(signal?: AbortSignal): Promise<string | undefined> {
-    if (this.defaultLocationId !== undefined) {
-      return this.defaultLocationId || undefined;
-    }
-
-    try {
-      const response = await this.listLocations(signal);
-      this.defaultLocationId = response.locations[0]?.id || null;
-    } catch {
-      this.defaultLocationId = null;
-    }
-
-    return this.defaultLocationId || undefined;
   }
 
   buildRequestFromBuilding(

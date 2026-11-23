@@ -14,6 +14,7 @@
  */
 
 import { DEFAULT_FACADE_PARAMETERS } from './FacadeGeometry';
+import type { BuildingModel } from '../types/building';
 import { calculateBuildingMetrics } from '../utils/buildingMetrics';
 import { proxyUrl } from './proxyUrl';
 
@@ -202,6 +203,33 @@ export function calculateEmbodiedCarbon(
 }
 
 /**
+ * Embodied carbon of one building with the constructions its energy study used: the GWP per m² of floor
+ * (for the design node's metrics) and the breakdown per element. Windows cover the building's
+ * window-to-wall ratio, or the default when it has none.
+ */
+export function embodiedCarbonOfBuilding(
+  options: EPSMConstructionOptions,
+  building: BuildingModel,
+  constructions: ResolvedEnergyConstructions
+): { gwp: number; breakdown: EmbodiedCarbonResult | null } {
+  const resolved = {
+    ...building,
+    wall_construction: constructions.wall,
+    floor_construction: constructions.floor,
+    roof_construction: constructions.roof,
+    window_construction: constructions.window,
+  };
+  const wallArea = building.metrics.perimeter * building.metrics.totalHeight;
+  const windowArea = wallArea * (building.window_to_wall_ratio ?? DEFAULT_FACADE_PARAMETERS.wwr);
+  return {
+    gwp: computePortfolioEmbodiedCarbon(options, [resolved]) ?? 0,
+    breakdown: calculateEmbodiedCarbon(options, constructions, {
+      wallArea, windowArea, floorArea: building.metrics.grossFloorArea, roofArea: building.metrics.footprintArea,
+    }),
+  };
+}
+
+/**
  * Compute total embodied carbon for a portfolio of buildings.
  * Sums GWP across all buildings and normalises by total floor area.
  *
@@ -246,10 +274,10 @@ export function computePortfolioEmbodiedCarbon(
     const result = calculateEmbodiedCarbon(
       options,
       {
-        wall:   b.wall_construction   ?? '',
-        floor:  b.floor_construction  ?? '',
-        roof:   b.roof_construction   ?? '',
-        window: b.window_construction ?? '',
+        wall:   constructionNameOrDefault(options, 'wall',   b.wall_construction),
+        floor:  constructionNameOrDefault(options, 'floor',  b.floor_construction),
+        roof:   constructionNameOrDefault(options, 'roof',   b.roof_construction),
+        window: constructionNameOrDefault(options, 'window', b.window_construction),
       },
       { wallArea, floorArea, roofArea, windowArea }
     );
@@ -263,23 +291,12 @@ export function computePortfolioEmbodiedCarbon(
   return totalFloorArea > 0 ? totalGwp / totalFloorArea : 0;
 }
 
+/** The building's construction name, or the first EPSM construction of that kind when it is missing or a "Default …" placeholder. */
+function constructionNameOrDefault(options: EPSMConstructionOptions, type: EPSMElementType, name: string | undefined): string {
+  return !name || name === DEFAULT_SENTINELS[type] ? (options[type][0]?.value ?? '') : name;
+}
+
 /** Return the cached options synchronously (null if not yet loaded). */
 export function getCachedEPSMOptions(): EPSMConstructionOptions | null {
   return _cache;
-}
-
-/**
- * Return the name of the first available construction for a given element type.
- * Uses the in-memory cache — returns null if cache is not yet populated.
- */
-export function getDefaultConstructionName(
-  options: EPSMConstructionOptions,
-  type: 'wall' | 'floor' | 'roof' | 'window'
-): string | null {
-  return options[type][0]?.value ?? null;
-}
-
-/** Clear the in-memory cache (useful in tests). */
-export function clearEPSMCache(): void {
-  _cache = null;
 }

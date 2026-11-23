@@ -8,8 +8,6 @@ import { createDaylightInputFingerprint } from './SimulationFingerprint';
 
 interface DaylightStudySetOptions {
   buildings: BuildingModel[];
-  /** Ignored since v1 (no locations); removed with the run flow in #25 step 25.4. */
-  location?: string;
   signal: AbortSignal;
   onStatus?: (building: BuildingModel, status: DaylightRunState) => void;
 }
@@ -18,8 +16,6 @@ interface EnergyStudyOptions {
   building: BuildingModel;
   /** All buildings in the scene, used to find walls shared with `building`. */
   buildings: readonly BuildingModel[];
-  /** Ignored since v1 (no locations); removed with the run flow in #25 step 25.4. */
-  location?: string;
   epsm: EPSMConstructionOptions | null;
   signal: AbortSignal;
   callbacks?: EnergyRunCallbacks;
