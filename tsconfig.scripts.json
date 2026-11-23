@@ -1,0 +1,11 @@
+{
+  // Dev scripts that run the app's own code under Node (e.g. `npm run check:energy`):
+  // the app's settings, plus Node's types and top-level await.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client"]
+  },
+  "include": ["scripts/**/*.ts", "src/vite-env.d.ts"]
+}
