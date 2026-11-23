@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { energyApiService, summariseEnergyResult, type EnergyStudyOptions } from '../EnergyApiService';
 import type { EngineEnergyResult } from '../../types/engine';
+import realEnergyFixture from './fixtures/v1-energy.json';
 import type { BuildingModel, Point3D } from '../../types/building';
 
 const point = (x: number, z: number): Point3D => ({ x, y: 0, z });
@@ -121,6 +122,20 @@ describe('summariseEnergyResult', () => {
       total_energy_kwh_m2: 223.182,
       monthly_heat_balance: engineResult.monthly_heat_balance,
     });
+  });
+
+  // A real v1 response (fixtures/v1-energy.json): if the engine renames a field the chart draws, this fails
+  // instead of the chart silently leaving out a bar. The keys are the bars of MonthlyHeatBalanceChart.
+  it('keeps every field the monthly chart draws, from a real engine response', () => {
+    const chartFields = ['heating', 'solar', 'equipment', 'lighting', 'people', 'infiltration_gain', 'cooling', 'infiltration_loss'];
+    const monthly = summariseEnergyResult(realEnergyFixture.result as unknown as EngineEnergyResult).monthly_heat_balance!;
+
+    expect(monthly.months).toHaveLength(12);
+    for (const field of chartFields) {
+      const values = (monthly as unknown as Record<string, number[]>)[field];
+      expect(values, field).toHaveLength(12);
+      values.forEach(value => expect(Number.isFinite(value), field).toBe(true));
+    }
   });
 
   it('leaves out a monthly balance without months', () => {
