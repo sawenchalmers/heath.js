@@ -52,6 +52,7 @@ export const DaylightResultsDialog: React.FC<DaylightResultsDialogProps> = ({
   useEffect(() => { onApplyVisualizationRef.current = onApplyVisualization; });
 
   const handleDownloadModel = () => {
+    if (!result.studyId) return; // v1 results have no study id; the button goes in #25 step 25.5
     const link = document.createElement('a');
     link.href = daylightApiService.getStudyModelDownloadUrl(result.studyId);
     link.download = `daylight-${result.studyId}.hbjson`;
@@ -65,7 +66,7 @@ export const DaylightResultsDialog: React.FC<DaylightResultsDialogProps> = ({
 
   useEffect(() => {
     setSelectedSensorGridIndex(0);
-  }, [result.studyId]);
+  }, [result.completedAt]);
 
   const sensorGrids = useMemo(() => {
     if (result.sensorGrids?.length) {

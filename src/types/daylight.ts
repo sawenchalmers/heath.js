@@ -1,4 +1,5 @@
 import { BuildingModel } from './building';
+import type { EngineSensorGrid } from './engine';
 import type { AdjacencyInput } from '../services/BuildingAdjacency';
 
 export type DaylightStudyStatus = 'queued' | 'running' | 'complete' | 'failed';
@@ -39,67 +40,28 @@ export interface DaylightContextBuildingInput {
   floor_to_floor_height: number;
 }
 
+/** What a daylight job computes (the v1 API's `daylight` block). */
+export interface DaylightOptions {
+  run_sda: boolean;
+  da_lux: number;
+  sda_target_pct: number;
+  /** "final" for real results (needs the engine's GPU to be quick); "preview" is much faster. */
+  quality: DaylightQuality;
+}
+
+export type DaylightQuality = 'final' | 'preview';
+
+/** Body of POST /v1/daylight. */
 export interface DaylightStudyRequest {
   room: DaylightRoomInput;
   context_buildings: DaylightContextBuildingInput[];
-  run_sda: boolean;
-  location?: string;
-  quality: 'full';
-  thresholds: DaylightRunThresholds;
+  daylight: DaylightOptions;
+  /** Large arrays as packed typed arrays (see EngineArrayUnpacking.ts). */
+  pack: boolean;
 }
 
-export interface DaylightStudyQueued {
-  study_id: string;
-  status: DaylightStudyStatus;
-  sensor_count: number;
-  links: {
-    status: string;
-    result: string;
-  };
-}
-
-export interface DaylightStudyStatusResponse {
-  study_id: string;
-  status: DaylightStudyStatus;
-  stage?: string;
-  error?: string;
-}
-
-export interface DaylightDfSummary {
-  mean_df: number;
-  min_df: number;
-  max_df: number;
-}
-
-export interface DaylightSdaSummary {
-  sda_300_50: number;
-  sensor_count: number;
-  passing_sensors: number;
-}
-
-export interface DaylightSensorGridRange {
-  identifier: string;
-  full_identifier: string;
-  room_identifier: string;
-  floor_number: number | null;
-  start_sensor_index: number;
-  sensor_count: number;
-}
-
-export interface DaylightStudyResult {
-  study_id: string;
-  df: {
-    summary: DaylightDfSummary;
-    values: number[];
-  };
-  sda?: {
-    summary: DaylightSdaSummary;
-    values: number[];
-    pass: boolean[];
-  } | null;
-  sensor_points?: [number, number, number][];
-  sensor_grids?: DaylightSensorGridRange[];
-}
+/** One floor's slice of the flat sensor arrays, as the engine returns it. */
+export type DaylightSensorGridRange = EngineSensorGrid;
 
 export interface DaylightApiError {
   error: string;
@@ -130,7 +92,8 @@ export interface DaylightOverlayDataset {
 
 export interface DaylightRunSummary {
   inputFingerprint?: string;
-  studyId: string;
+  /** Only on results from the old engine API; v1 has no study ids. */
+  studyId?: string;
   status: DaylightStudyStatus;
   stage?: string;
   sensorCount: number;
@@ -157,8 +120,8 @@ export interface DaylightRunState {
 
 export interface DaylightBuildRequestOptions {
   run_sda?: boolean;
-  location?: string;
-  quality?: 'full';
+  /** Defaults to the VITE_DAYLIGHT_QUALITY setting, else "final". */
+  quality?: DaylightQuality;
   thresholds?: DaylightRunThresholds;
   sensor_grid?: Partial<SensorGridConfig>;
   selected_floor_number?: number;
@@ -170,7 +133,6 @@ export interface DaylightBuildRequestOptions {
 
 export interface DaylightRunOptions {
   signal?: AbortSignal;
-  pollMs?: number;
   onStatus?: (status: DaylightRunState) => void;
 }
 

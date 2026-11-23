@@ -4,48 +4,38 @@ import { buildSimulationFootprint, reverseEdgeValues, sharedFloorsByEdge, simpli
 import { calculateSignedArea } from '../utils/geometry';
 import { probeEngine, type EngineStatus } from './EngineStatus';
 import { proxyUrl } from './proxyUrl';
+import { unpackPoints, unpackValues } from './EngineArrayUnpacking';
+import type { EngineDaylightResult } from '../types/engine';
 import {
   DaylightApiError,
   DaylightBuildRequestOptions,
   DaylightContextBuildingInput,
   DaylightLocationsResponse,
+  DaylightQuality,
   DaylightRunOptions,
   DaylightRunSummary,
-  DaylightSensorGridRange,
   DaylightSensorPoint,
-  DaylightStudyQueued,
   DaylightStudyRequest,
-  DaylightStudyResult,
-  DaylightStudyStatusResponse,
   SensorGridConfig
 } from '../types/daylight';
 
 // The engine, forwarded under the app's own base path (see proxiedServices.ts).
 const DEFAULT_BASE_URL = proxyUrl('daylight');
-const DEFAULT_DIRECT_FALLBACK_URLS: string[] = [];
 const DEFAULT_SENSOR_GRID: SensorGridConfig = { x_dim: 0.5, y_dim: 0.5, offset: 0.75 };
+// "final" on the deployed engine (GPU); .env.development sets "preview", since final takes minutes on a CPU.
+const DAYLIGHT_QUALITY: DaylightQuality = import.meta.env.VITE_DAYLIGHT_QUALITY === 'preview' ? 'preview' : 'final';
 
 class DaylightApiService {
   private readonly baseUrl: string;
-  private readonly directFallbackBaseUrls: string[];
   private defaultLocationId: string | null | undefined;
 
   constructor(baseUrl?: string) {
     const configuredBaseUrl = baseUrl || import.meta.env.VITE_DAYLIGHT_API_BASE_URL || DEFAULT_BASE_URL;
     this.baseUrl = configuredBaseUrl.replace(/\/$/, '');
-
-    const configuredFallbacks = (import.meta.env.VITE_DAYLIGHT_API_FALLBACK_URLS as string | undefined)
-      ?.split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-
-    this.directFallbackBaseUrls = (configuredFallbacks && configuredFallbacks.length > 0)
-      ? configuredFallbacks
-      : DEFAULT_DIRECT_FALLBACK_URLS;
-
     this.defaultLocationId = undefined;
   }
 
+  // Removed in #25 step 25.4: v1 has no locations (the engine uses its default weather file).
   async listLocations(signal?: AbortSignal): Promise<DaylightLocationsResponse> {
     return this.request<DaylightLocationsResponse>('/v1/locations', {
       method: 'GET',
@@ -53,9 +43,9 @@ class DaylightApiService {
     });
   }
 
-  /** Check whether the engine answers, with the cheapest request it serves (the locations list). */
+  /** Check whether the engine answers: v1's health check, which needs no key and also checks the job queue. */
   checkEngineStatus(): Promise<EngineStatus> {
-    return probeEngine(`${this.baseUrl}/v1/locations`);
+    return probeEngine(`${this.baseUrl}/health`);
   }
 
   async getDefaultLocation(signal?: AbortSignal): Promise<string | undefined> {
@@ -113,13 +103,13 @@ class DaylightApiService {
         sensor_grid
       },
       context_buildings: options.context_buildings ?? [],
-      run_sda: options.run_sda ?? false,
-      location: options.location,
-      quality: 'full',
-      thresholds: options.thresholds ?? {
-        da_lux: 300,
-        sda_target_pct: 50
-      }
+      daylight: {
+        run_sda: options.run_sda ?? false,
+        da_lux: options.thresholds?.da_lux ?? 300,
+        sda_target_pct: options.thresholds?.sda_target_pct ?? 50,
+        quality: options.quality ?? DAYLIGHT_QUALITY
+      },
+      pack: true
     };
   }
 
@@ -205,16 +195,19 @@ class DaylightApiService {
     return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
   }
 
+  /** Run one daylight study: a single request that waits for the result (v1), then mapped to the UI's shape. */
   async runStudyForBuilding(
     building: BuildingModel,
     options: DaylightBuildRequestOptions = {},
     runOptions: DaylightRunOptions = {}
   ): Promise<DaylightRunSummary> {
     const request = this.buildRequestFromBuilding(building, options);
-    let queued: DaylightStudyQueued;
+    const startedAt = new Date().toISOString();
+    runOptions.onStatus?.({ status: 'running' });
+    let result: EngineDaylightResult;
 
     try {
-      queued = await this.startStudy(request, runOptions.signal);
+      result = await this.postDaylight(request, runOptions.signal);
     } catch (error) {
       if (!this.shouldRetryWithReversedFootprint(error)) {
         throw error;
@@ -232,252 +225,27 @@ class DaylightApiService {
       };
 
       console.warn('[DaylightApiService] Retrying study with reversed footprint winding after ground-boundary aperture error.');
-      queued = await this.startStudy(retryRequest, runOptions.signal);
+      result = await this.postDaylight(retryRequest, runOptions.signal);
     }
 
-    runOptions.onStatus?.({ status: queued.status, studyId: queued.study_id });
-
-    const status = await this.pollUntilComplete(queued.study_id, runOptions);
-
-    if (status.status !== 'complete') {
-      throw new Error(status.error || `Daylight study ended with status: ${status.status}`);
-    }
-
-    const result = await this.getResult(queued.study_id, runOptions.signal);
-    this.validateResultArrays(result, request);
-
-    const points =
-      result.sensor_points
-        ? this.mapBackendSensorPoints(result.sensor_points, result.df.values)
-        : this.reconstructSensorPoints(request, result.df.values);
-
-    const sdaPoints = result.sda
-      ? points.map((point, index) => ({
-          ...point,
-          value: result.sda!.values[index],
-        }))
-      : undefined;
-
-    const sensorGrids: DaylightSensorGridRange[] = result.sensor_grids ?? [{
-      identifier: `floor-${request.room.selected_floor_number}`,
-      full_identifier: `floor-${request.room.selected_floor_number}`,
-      room_identifier: 'room',
-      floor_number: request.room.selected_floor_number,
-      start_sensor_index: 0,
-      sensor_count: points.length
-    }];
-
-    return {
-      studyId: queued.study_id,
-      status: 'complete',
-      stage: status.stage,
-      sensorCount: points.length,
-      meanDF: result.df.summary.mean_df,
-      sda: result.sda?.summary.sda_300_50 ?? 0,
-      minDF: result.df.summary.min_df,
-      maxDF: result.df.summary.max_df,
-      points,
-      sdaPoints,
-      sdaPassMask: result.sda?.pass,
-      sensorGrids,
-      sensorGrid: { ...request.room.sensor_grid },
-      startedAt: new Date().toISOString(),
-      completedAt: new Date().toISOString()
-    };
+    return { ...summariseDaylightResult(result, request), startedAt, completedAt: new Date().toISOString() };
   }
 
-  async startStudy(request: DaylightStudyRequest, signal?: AbortSignal): Promise<DaylightStudyQueued> {
-    return this.request<DaylightStudyQueued>('/v1/studies', {
+  /** POST /v1/daylight: waits until the engine has the result; aborting the signal also cancels the job there. */
+  async postDaylight(request: DaylightStudyRequest, signal?: AbortSignal): Promise<EngineDaylightResult> {
+    return this.request<EngineDaylightResult>('/v1/daylight', {
       method: 'POST',
       body: JSON.stringify(request),
       signal
     });
   }
 
-  async getStatus(studyId: string, signal?: AbortSignal): Promise<DaylightStudyStatusResponse> {
-    return this.request<DaylightStudyStatusResponse>(`/v1/studies/${studyId}`, {
-      method: 'GET',
-      signal
-    });
-  }
-
-  async getResult(studyId: string, signal?: AbortSignal): Promise<DaylightStudyResult> {
-    return this.request<DaylightStudyResult>(`/v1/studies/${studyId}/result`, {
-      method: 'GET',
-      signal
-    });
-  }
-
+  // Removed in #25 step 25.5: v1 doesn't store studies, so there's no model to download by id (#39).
   getStudyModelDownloadUrl(studyId: string): string {
     return `${this.baseUrl}/v1/studies/${encodeURIComponent(studyId)}/model.hbjson`;
   }
 
-  private async pollUntilComplete(studyId: string, runOptions: DaylightRunOptions): Promise<DaylightStudyStatusResponse> {
-    const pollMs = runOptions.pollMs ?? 2000;
-
-    while (true) {
-      if (runOptions.signal?.aborted) {
-        throw new Error('Daylight run cancelled');
-      }
-
-      const status = await this.getStatus(studyId, runOptions.signal);
-      runOptions.onStatus?.({
-        status: status.status,
-        studyId: status.study_id,
-        stage: status.stage,
-        error: status.error
-      });
-
-      if (status.status === 'complete' || status.status === 'failed') {
-        return status;
-      }
-
-      await this.delay(pollMs, runOptions.signal);
-    }
-  }
-
-  reconstructSensorPoints(request: DaylightStudyRequest, values: number[]): DaylightSensorPoint[] {
-    const footprint = request.room.footprint_coordinates;
-    const sensorGrid = request.room.sensor_grid;
-    const selectedFloor = request.room.selected_floor_number;
-
-    if (footprint.length < 3) {
-      return [];
-    }
-
-    const origin = footprint[0];
-    const second = footprint[1];
-    const axisXRaw: [number, number] = [second[0] - origin[0], second[1] - origin[1]];
-    const axisXLen = Math.hypot(axisXRaw[0], axisXRaw[1]) || 1;
-    const axisX: [number, number] = [axisXRaw[0] / axisXLen, axisXRaw[1] / axisXLen];
-    const axisY: [number, number] = [-axisX[1], axisX[0]];
-
-    const toLocal = (point: [number, number]): [number, number] => {
-      const dx = point[0] - origin[0];
-      const dz = point[1] - origin[1];
-      return [dx * axisX[0] + dz * axisX[1], dx * axisY[0] + dz * axisY[1]];
-    };
-
-    const toWorld = (localX: number, localY: number): [number, number] => {
-      return [
-        origin[0] + axisX[0] * localX + axisY[0] * localY,
-        origin[1] + axisX[1] * localX + axisY[1] * localY
-      ];
-    };
-
-    const localFootprint = footprint.map(toLocal);
-    const minLocalX = Math.min(...localFootprint.map(([x]) => x));
-    const maxLocalX = Math.max(...localFootprint.map(([x]) => x));
-    const minLocalY = Math.min(...localFootprint.map(([, y]) => y));
-    const maxLocalY = Math.max(...localFootprint.map(([, y]) => y));
-
-    const y = (selectedFloor - 1) * request.room.floor_to_floor_height + sensorGrid.offset;
-    const epsilon = 1e-6;
-
-    const positions: Omit<DaylightSensorPoint, 'value'>[] = [];
-
-    for (let localX = minLocalX + sensorGrid.x_dim / 2; localX < maxLocalX - sensorGrid.x_dim / 2 + epsilon; localX += sensorGrid.x_dim) {
-      for (let localY = minLocalY + sensorGrid.y_dim / 2; localY < maxLocalY - sensorGrid.y_dim / 2 + epsilon; localY += sensorGrid.y_dim) {
-        const [worldX, worldZ] = toWorld(localX, localY);
-        if (this.isPointInPolygon(worldX, worldZ, footprint)) {
-          positions.push({ x: worldX, y, z: worldZ });
-        }
-      }
-    }
-
-    const pointCount = Math.min(positions.length, values.length);
-    const points: DaylightSensorPoint[] = [];
-
-    for (let i = 0; i < pointCount; i += 1) {
-      points.push({
-        ...positions[i],
-        value: values[i]
-      });
-    }
-
-    return points;
-  }
-
-  private mapBackendSensorPoints(sensorPoints: [number, number, number][], values: number[]): DaylightSensorPoint[] {
-    if (sensorPoints.length !== values.length) {
-      throw new Error(
-        `Daylight API returned mismatched sensor points (${sensorPoints.length}) and values (${values.length}).`
-      );
-    }
-
-    return sensorPoints.map(([x, y, z], index) => ({
-      x,
-      y: z,
-      z: y,
-      value: values[index]
-    }));
-  }
-
-  private validateResultArrays(result: DaylightStudyResult, request: DaylightStudyRequest): void {
-    const resultLength = result.df.values.length;
-
-    if (!result.sensor_points) {
-      if (request.room.simulate_all_floors || request.run_sda) {
-        throw new Error('Daylight API did not return sensor points for a study that requires ordered result arrays.');
-      }
-    } else if (result.sensor_points.length !== resultLength) {
-      throw new Error(
-        `Daylight API returned mismatched sensor points (${result.sensor_points.length}) and DF values (${resultLength}).`
-      );
-    }
-
-    if (request.run_sda && !result.sda) {
-      throw new Error('Daylight API did not return sDA arrays for a study that requested sDA.');
-    }
-
-    if (result.sda) {
-      if (result.sda.values.length !== resultLength || result.sda.pass.length !== resultLength) {
-        throw new Error(
-          `Daylight API returned misaligned result arrays: DF (${resultLength}), sDA values (${result.sda.values.length}), sDA pass (${result.sda.pass.length}).`
-        );
-      }
-    }
-
-    // From what I can tell in the API, result never includes `sensor_grids`...?
-    if (request.room.simulate_all_floors && resultLength > 0 && !result.sensor_grids?.length) {
-      throw new Error('Daylight API did not return sensor grid ranges for an all-floor study.');
-    }
-
-    if (result.sensor_grids?.length) {
-      for (const grid of result.sensor_grids) {
-        const { start_sensor_index: start, sensor_count: count } = grid;
-        if (!Number.isInteger(start) || !Number.isInteger(count) || start < 0 || count < 0) {
-          throw new Error(`Daylight API returned an invalid sensor grid range for ${grid.full_identifier}.`);
-        }
-
-        if (start + count > resultLength) {
-          throw new Error(`Daylight API sensor grid range exceeds the result arrays for ${grid.full_identifier}.`);
-        }
-      }
-    }
-  }
-
-  private isPointInPolygon(x: number, z: number, polygon: [number, number][]): boolean {
-    let inside = false;
-
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const xi = polygon[i][0];
-      const zi = polygon[i][1];
-      const xj = polygon[j][0];
-      const zj = polygon[j][1];
-
-      const intersects =
-        zi > z !== zj > z &&
-        x < ((xj - xi) * (z - zi)) / ((zj - zi) || Number.EPSILON) + xi;
-
-      if (intersects) {
-        inside = !inside;
-      }
-    }
-
-    return inside;
-  }
-
+  /** Send a request to the engine; failures become errors carrying the engine's message for the user. */
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const requestUrl = `${this.baseUrl}${path}`;
     let response: Response;
@@ -491,6 +259,9 @@ class DaylightApiService {
         }
       });
     } catch (error) {
+      if (init.signal?.aborted) {
+        throw new Error('Daylight run cancelled');
+      }
       if (error instanceof TypeError) {
         throw new Error(
           `Unable to reach daylight API at ${this.baseUrl}. In dev, ensure Vite proxy is active and backend is reachable.`
@@ -502,34 +273,6 @@ class DaylightApiService {
 
     if (!response.ok) {
       const method = (init.method || 'GET').toUpperCase();
-
-      // In dev, if proxy returns 5xx, retry direct API targets to bypass proxy-layer failures.
-      if (import.meta.env.DEV && this.baseUrl === DEFAULT_BASE_URL && response.status >= 500) {
-        for (const fallbackBaseUrl of this.directFallbackBaseUrls) {
-          const normalizedFallback = fallbackBaseUrl.replace(/\/$/, '');
-          const fallbackUrl = `${normalizedFallback}${path}`;
-
-          try {
-            const fallbackResponse = await fetch(fallbackUrl, {
-              ...init,
-              headers: {
-                'Content-Type': 'application/json',
-                ...(init.headers || {})
-              }
-            });
-
-            if (fallbackResponse.ok) {
-              console.warn(
-                `[DaylightApiService] Proxy request ${method} ${requestUrl} failed with ${response.status}; recovered via direct fallback ${fallbackUrl}.`
-              );
-              return fallbackResponse.json() as Promise<T>;
-            }
-          } catch {
-            // Ignore fallback connectivity errors and continue to parse original failure.
-          }
-        }
-      }
-
       const fallbackError: DaylightApiError = {
         error: 'request_failed',
         message: `HTTP ${response.status} ${response.statusText}`
@@ -540,6 +283,7 @@ class DaylightApiService {
 
       try {
         responseBody = await response.text();
+        // v1 answers { error, message }; FastAPI's own errors wrap that (or a string) in `detail`.
         const asJson = JSON.parse(responseBody) as {
           error?: string;
           message?: string;
@@ -585,22 +329,59 @@ class DaylightApiService {
     const message = error.message.toLowerCase();
     return message.includes('ground boundary condition') && message.includes('aperture');
   }
-
-  private delay(ms: number, signal?: AbortSignal): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const id = window.setTimeout(() => {
-        signal?.removeEventListener('abort', onAbort);
-        resolve();
-      }, ms);
-
-      const onAbort = () => {
-        window.clearTimeout(id);
-        reject(new Error('Daylight run cancelled'));
-      };
-
-      signal?.addEventListener('abort', onAbort, { once: true });
-    });
-  }
 }
 
 export const daylightApiService = new DaylightApiService();
+
+/**
+ * Turns a v1 daylight result into the shape the UI uses (heatmap, per-floor view, results dialog),
+ * after checking that its arrays line up. Engine points are [x, y, z] with z up; the scene's y is up.
+ */
+export function summariseDaylightResult(
+  result: EngineDaylightResult,
+  request: DaylightStudyRequest
+): Omit<DaylightRunSummary, 'startedAt'> {
+  const df = unpackValues(result.df);
+  const positions = unpackPoints(result.sensor_points);
+  const da = result.da ? unpackValues(result.da) : undefined;
+
+  if (positions.length !== df.length) {
+    throw new Error(`Daylight API returned mismatched sensor points (${positions.length}) and values (${df.length}).`);
+  }
+  if (request.daylight.run_sda && !da) {
+    throw new Error('Daylight API did not return daylight autonomy for a study that requested sDA.');
+  }
+  if (da && da.length !== df.length) {
+    throw new Error(`Daylight API returned misaligned result arrays: DF (${df.length}), DA (${da.length}).`);
+  }
+  if (!result.sensor_grids?.length && df.length > 0) {
+    throw new Error('Daylight API did not return sensor grid ranges.');
+  }
+  for (const grid of result.sensor_grids ?? []) {
+    const { start_sensor_index: start, sensor_count: count } = grid;
+    if (!Number.isInteger(start) || !Number.isInteger(count) || start < 0 || count < 0) {
+      throw new Error(`Daylight API returned an invalid sensor grid range for ${grid.full_identifier}.`);
+    }
+    if (start + count > df.length) {
+      throw new Error(`Daylight API sensor grid range exceeds the result arrays for ${grid.full_identifier}.`);
+    }
+  }
+
+  const toScene = (values: number[]): DaylightSensorPoint[] =>
+    positions.map(([x, y, z], index) => ({ x, y: z, z: y, value: values[index] }));
+  const sdaTargetPct = request.daylight.sda_target_pct;
+
+  return {
+    status: 'complete',
+    sensorCount: df.length,
+    meanDF: result.df_summary.mean_df,
+    sda: result.sda_summary?.sda ?? 0,
+    minDF: result.df_summary.min_df,
+    maxDF: result.df_summary.max_df,
+    points: toScene(df),
+    sdaPoints: da ? toScene(da) : undefined,
+    sdaPassMask: da?.map(value => value >= sdaTargetPct),
+    sensorGrids: result.sensor_grids,
+    sensorGrid: { ...request.room.sensor_grid }
+  };
+}

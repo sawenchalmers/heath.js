@@ -8,6 +8,7 @@ import { createDaylightInputFingerprint } from './SimulationFingerprint';
 
 interface DaylightStudySetOptions {
   buildings: BuildingModel[];
+  /** Ignored since v1 (no locations); removed with the run flow in #25 step 25.4. */
   location?: string;
   signal: AbortSignal;
   onStatus?: (building: BuildingModel, status: DaylightRunState) => void;
@@ -30,14 +31,12 @@ export interface CoordinatedEnergyResult {
 
 /** Owns simulation submission/polling details so the workspace remains UI orchestration only. */
 export class SimulationCoordinator {
-  async runDaylightStudySet({ buildings, location, signal, onStatus }: DaylightStudySetOptions): Promise<Record<string, DaylightRunSummary>> {
-    const runSda = Boolean(location);
+  async runDaylightStudySet({ buildings, signal, onStatus }: DaylightStudySetOptions): Promise<Record<string, DaylightRunSummary>> {
     const results = await Promise.all(buildings.map(building => daylightApiService.runStudyForBuilding(
       building,
       {
-        run_sda: runSda,
-        location,
-        quality: 'full',
+        // v1 computes sDA with the engine's default weather; it no longer depends on a location.
+        run_sda: true,
         selected_floor_number: Math.max(1, building.floors),
         simulate_all_floors: true,
         context_buildings: buildings

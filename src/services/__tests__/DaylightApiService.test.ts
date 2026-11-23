@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { daylightApiService } from '../DaylightApiService';
+import { daylightApiService, summariseDaylightResult } from '../DaylightApiService';
 import type { BuildingData } from '../../types/building';
-import type { DaylightStudyRequest, DaylightStudyResult } from '../../types/daylight';
+import type { DaylightStudyRequest } from '../../types/daylight';
+import type { EngineDaylightResult } from '../../types/engine';
+import { unpackPoints, unpackValues } from '../EngineArrayUnpacking';
+import fixture from './fixtures/v1-daylight-two-floors.json';
 
 const makeBuilding = (): BuildingData => ({
   id: 'building-1',
@@ -19,16 +22,14 @@ const makeBuilding = (): BuildingData => ({
   createdAt: new Date()
 });
 
-const validateResultArrays = (result: DaylightStudyResult, request: DaylightStudyRequest) =>
-  (daylightApiService as unknown as {
-    validateResultArrays: (studyResult: DaylightStudyResult, studyRequest: DaylightStudyRequest) => void;
-  }).validateResultArrays(result, request);
-
-describe('DaylightApiService sensor point mapping', () => {
-  it('requests a full-quality sensor grid on every building floor', () => {
+describe('DaylightApiService requests', () => {
+  it('requests final quality, packed arrays and a sensor grid on every building floor', () => {
     const request = daylightApiService.buildRequestFromBuilding(makeBuilding());
 
-    expect(request.quality).toBe('full');
+    // Tests run without .env.development, so the default applies.
+    expect(request.daylight).toEqual({ run_sda: false, da_lux: 300, sda_target_pct: 50, quality: 'final' });
+    expect(request.pack).toBe(true);
+    expect(request).not.toHaveProperty('location');
     expect(request.room.floors).toBe(3);
     expect(request.room.simulate_all_floors).toBe(true);
     expect(request.room.sensor_grid).toEqual({ x_dim: 0.5, y_dim: 0.5, offset: 0.75 });
@@ -121,13 +122,13 @@ describe('DaylightApiService sensor point mapping', () => {
       // reversed (a neighbour in the middle of the wall would land on the same index by coincidence).
       const cornerNeighbour = { ...neighbour(3), points: [{ x: 4, y: 0, z: 0 }, { x: 8, y: 0, z: 0 }, { x: 8, y: 0, z: 1 }, { x: 4, y: 0, z: 1 }] };
       const sentRequests: DaylightStudyRequest[] = [];
-      const startStudy = vi.spyOn(daylightApiService, 'startStudy').mockImplementation(async (request) => {
+      const postDaylight = vi.spyOn(daylightApiService, 'postDaylight').mockImplementation(async (request) => {
         sentRequests.push(request);
         throw new Error(sentRequests.length === 1 ? 'Ground boundary condition cannot have an aperture' : 'stop after retry');
       });
 
       await expect(daylightApiService.runStudyForBuilding(building, { neighbours: [building, cornerNeighbour] })).rejects.toThrow('stop after retry');
-      startStudy.mockRestore();
+      postDaylight.mockRestore();
 
       // Each wall, named by its two corners, must keep its shared floors after the reversal.
       const floorsByWall = (request: DaylightStudyRequest) => {
@@ -150,102 +151,63 @@ describe('DaylightApiService sensor point mapping', () => {
     );
   });
 
-  it('maps Honeybee sensor points directly into Three.js coordinates', () => {
-    const points = (daylightApiService as unknown as {
-      mapBackendSensorPoints: (sensorPoints: [number, number, number][], values: number[]) => Array<{
-        x: number;
-        y: number;
-        z: number;
-        value: number;
-      }>;
-    }).mapBackendSensorPoints(
-      [
-        [12, 34, 56],
-        [7, 8, 9]
-      ],
-      [100, 200]
-    );
-
-    expect(points).toEqual([
-      { x: 12, y: 56, z: 34, value: 100 },
-      { x: 7, y: 9, z: 8, value: 200 }
-    ]);
+  it('checks the engine through v1\'s health check', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"status":"ok"}', { status: 200, headers: { 'content-type': 'application/json' } }));
+    await expect(daylightApiService.checkEngineStatus()).resolves.toBe('available');
+    expect(String(fetchMock.mock.calls[0][0])).toBe('/proxy/daylight/health');
+    fetchMock.mockRestore();
   });
 
-  it('throws when sensor points and values do not have equal lengths', () => {
-    expect(() =>
-      (daylightApiService as unknown as {
-        mapBackendSensorPoints: (sensorPoints: [number, number, number][], values: number[]) => unknown;
-      }).mapBackendSensorPoints([[1, 2, 3]], [10, 20])
-    ).toThrow(/mismatched sensor points/i);
+  it('passes the engine\'s message on when a study fails', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ error: 'simulation_failed', message: 'TimeLimitExceeded(1200,)' }),
+      { status: 500, headers: { 'content-type': 'application/json' } },
+    ));
+    await expect(daylightApiService.runStudyForBuilding(makeBuilding())).rejects.toThrow(/TimeLimitExceeded/);
+    expect(String(fetchMock.mock.calls[0][0])).toBe('/proxy/daylight/v1/daylight');
+    fetchMock.mockRestore();
+  });
+});
+
+// A real v1 result (two floors, 24 sensors, with sDA), see fixtures/v1-daylight-two-floors.json.
+describe('summariseDaylightResult', () => {
+  const result = fixture.packed as unknown as EngineDaylightResult;
+  const request = { room: { sensor_grid: fixture.request.room.sensor_grid }, daylight: { run_sda: true, da_lux: 300, sda_target_pct: 50, quality: 'preview' } } as unknown as DaylightStudyRequest;
+
+  it('places each sensor in the scene with y up, carrying its daylight factor', () => {
+    const summary = summariseDaylightResult(result, request);
+    const engine = unpackPoints(result.sensor_points);
+    const df = unpackValues(result.df);
+    expect(summary.points).toHaveLength(24);
+    expect(summary.points[0]).toEqual({ x: engine[0][0], y: engine[0][2], z: engine[0][1], value: df[0] });
   });
 
-  it('accepts aligned all-floor arrays and contiguous sensor grid ranges', () => {
-    const request = daylightApiService.buildRequestFromBuilding(makeBuilding(), { run_sda: true });
-    const result: DaylightStudyResult = {
-      study_id: 'study-1',
-      df: {
-        summary: { mean_df: 2.5, min_df: 1, max_df: 4 },
-        values: [1, 2, 3, 4]
-      },
-      sda: {
-        summary: { sda_300_50: 50, sensor_count: 4, passing_sensors: 2 },
-        values: [10, 20, 80, 90],
-        pass: [false, false, true, true]
-      },
-      sensor_points: [
-        [0, 0, 0.75],
-        [1, 0, 0.75],
-        [0, 0, 3.75],
-        [1, 0, 3.75]
-      ],
-      sensor_grids: [
-        {
-          identifier: 'floor-1-grid',
-          full_identifier: 'room-floor-1-grid',
-          room_identifier: 'room-floor-1',
-          floor_number: 1,
-          start_sensor_index: 0,
-          sensor_count: 2
-        },
-        {
-          identifier: 'floor-2-grid',
-          full_identifier: 'room-floor-2-grid',
-          room_identifier: 'room-floor-2',
-          floor_number: 2,
-          start_sensor_index: 2,
-          sensor_count: 2
-        }
-      ]
-    };
-
-    expect(() => validateResultArrays(result, request)).not.toThrow();
+  it('keeps the summary figures and the per-floor slices', () => {
+    const summary = summariseDaylightResult(result, request);
+    expect(summary).toMatchObject({ status: 'complete', sensorCount: 24, meanDF: result.df_summary.mean_df, minDF: result.df_summary.min_df, maxDF: result.df_summary.max_df, sda: result.sda_summary!.sda });
+    expect(summary.sensorGrids.map(grid => grid.floor_number)).toEqual([1, 2]);
+    expect(summary.sensorGrid).toEqual(fixture.request.room.sensor_grid);
   });
 
-  it('rejects independently truncated sDA pass arrays', () => {
-    const request = daylightApiService.buildRequestFromBuilding(makeBuilding(), { run_sda: true });
-    const result: DaylightStudyResult = {
-      study_id: 'study-1',
-      df: {
-        summary: { mean_df: 1.5, min_df: 1, max_df: 2 },
-        values: [1, 2]
-      },
-      sda: {
-        summary: { sda_300_50: 50, sensor_count: 2, passing_sensors: 1 },
-        values: [20, 80],
-        pass: [false]
-      },
-      sensor_points: [[0, 0, 0.75], [1, 0, 0.75]],
-      sensor_grids: [{
-        identifier: 'floor-1-grid',
-        full_identifier: 'room-floor-1-grid',
-        room_identifier: 'room-floor-1',
-        floor_number: 1,
-        start_sensor_index: 0,
-        sensor_count: 2
-      }]
-    };
+  it('marks a sensor as passing sDA when its daylight autonomy reaches the target', () => {
+    const summary = summariseDaylightResult(result, request);
+    const da = unpackValues(result.da!);
+    expect(summary.sdaPoints!.map(point => point.value)).toEqual(da);
+    expect(summary.sdaPassMask).toEqual(da.map(value => value >= 50));
+    expect(summary.sdaPassMask!.filter(Boolean)).toHaveLength(result.sda_summary!.passing_sensors);
+  });
 
-    expect(() => validateResultArrays(result, request)).toThrow(/misaligned result arrays/i);
+  it('rejects a result without daylight autonomy when sDA was requested', () => {
+    expect(() => summariseDaylightResult({ ...result, da: null }, request)).toThrow(/daylight autonomy/);
+  });
+
+  it('rejects sensor points and values that do not line up', () => {
+    const plain = fixture.plain as unknown as EngineDaylightResult;
+    expect(() => summariseDaylightResult({ ...plain, df: (plain.df as number[]).slice(1) }, request)).toThrow(/mismatched/);
+  });
+
+  it('rejects a floor slice that reaches past the arrays', () => {
+    const grids = result.sensor_grids.map((grid, i) => (i === 1 ? { ...grid, sensor_count: grid.sensor_count + 1 } : grid));
+    expect(() => summariseDaylightResult({ ...result, sensor_grids: grids }, request)).toThrow(/exceeds/);
   });
 });
