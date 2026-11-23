@@ -4,7 +4,7 @@ How heath.js is developed: one developer working with an AI coding assistant (Cl
 
 Most of it is project-neutral. Parts specific to heath.js are marked as such.
 
-**Version 4** (19 November 2026). History at the end.
+**Version 5** (23 November 2026). History at the end.
 
 ## Working together
 
@@ -71,9 +71,10 @@ Each kind of information has one home; the others link to it.
 
 **Reviewing a change before committing**
 1. **The handover:** the assistant stops with the change uncommitted and gives a short list of the changed files, as links to the changed places, plus test steps where the change affects behaviour. No pasted diffs, and no explanations unless asked.
-2. **The review:** in VS Code's Source Control panel, clicking a changed file opens the red/green diff against the last commit. It's set to show inline rather than side by side (`"diffEditor.renderSideBySide": false`).
-3. **The test:** in the app, following the given steps.
-4. **The go-ahead:** the developer says when to commit, and whether the assistant may choose the split.
+2. **Review comments:** for a larger change, the assistant puts a temporary `// REVIEW:` comment (or the file type's equivalent) on its own line above each change, saying what changed and why: what was removed, what moved where, what is wording only. Before committing, it deletes them all and confirms with a search that none are left.
+3. **The review:** in VS Code's Source Control panel, clicking a changed file opens the red/green diff against the last commit, with the review comments read alongside. It's set to show inline rather than side by side (`"diffEditor.renderSideBySide": false`).
+4. **The test:** in the app, following the given steps.
+5. **The go-ahead:** the developer says when to commit, and whether the assistant may choose the split.
 
 **Commits**
 - Only on the developer's word; one commit per item; Conventional Commits (`type(scope): summary`, imperative, lowercase, no trailing period).
@@ -110,6 +111,7 @@ After each pull request, and after a planning session that changes the method, c
 
 ## History
 
+- **Version 5** (23 November 2026, during #25): temporary `// REVIEW:` comments on each change of a larger diff, removed before committing.
 - **Version 4** (19 November 2026): planning layers (release issue, work plan by workstream, ideas issue, milestone, snapshot page); triage one by one, then a cross-check; independent reviews of plans; self-run UX reviews; issue notes for drafts; no unrequested asks; checking what's staged; care with "Closes #n". Moved into the repository so other projects can use it as a starting point.
 - **Version 3** (19 November 2026, after PR #72): the version bump also updates `CITATION.cff`; new AI models go into the README.
 - **Version 2** (18 November 2026, after PR #48): the simplest solution first, unit tests only for real logic; the whole-branch manual test rerun after review fixes; non-behavioural fixes may share a review round; merging from the terminal; inspect target environments early; no tiny pull requests.
