@@ -145,12 +145,6 @@ describe('DaylightApiService requests', () => {
     });
   });
 
-  it('builds the direct HBJSON attachment URL', () => {
-    expect(daylightApiService.getStudyModelDownloadUrl('study/one')).toBe(
-      '/proxy/daylight/v1/studies/study%2Fone/model.hbjson'
-    );
-  });
-
   it('checks the engine through v1\'s health check', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"status":"ok"}', { status: 200, headers: { 'content-type': 'application/json' } }));
     await expect(daylightApiService.checkEngineStatus()).resolves.toBe('available');

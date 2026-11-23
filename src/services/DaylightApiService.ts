@@ -214,11 +214,6 @@ class DaylightApiService {
     });
   }
 
-  // Removed in #25 step 25.5: v1 doesn't store studies, so there's no model to download by id (#39).
-  getStudyModelDownloadUrl(studyId: string): string {
-    return `${this.baseUrl}/v1/studies/${encodeURIComponent(studyId)}/model.hbjson`;
-  }
-
   /** Send a request to the engine; failures become errors carrying the engine's message for the user. */
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const requestUrl = `${this.baseUrl}${path}`;
