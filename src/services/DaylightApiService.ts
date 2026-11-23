@@ -19,7 +19,7 @@ import {
 } from '../types/daylight';
 
 // The engine, forwarded under the app's own base path (see proxiedServices.ts).
-const DEFAULT_BASE_URL = proxyUrl('daylight');
+const DEFAULT_BASE_URL = proxyUrl('engine');
 const DEFAULT_SENSOR_GRID: SensorGridConfig = { x_dim: 0.5, y_dim: 0.5, offset: 0.75 };
 // "final" on the deployed engine (GPU); .env.development sets "preview", since final takes minutes on a CPU.
 const DAYLIGHT_QUALITY: DaylightQuality = import.meta.env.VITE_DAYLIGHT_QUALITY === 'preview' ? 'preview' : 'final';
@@ -28,7 +28,7 @@ class DaylightApiService {
   private readonly baseUrl: string;
 
   constructor(baseUrl?: string) {
-    const configuredBaseUrl = baseUrl || import.meta.env.VITE_DAYLIGHT_API_BASE_URL || DEFAULT_BASE_URL;
+    const configuredBaseUrl = baseUrl || import.meta.env.VITE_ENGINE_API_BASE_URL || DEFAULT_BASE_URL;
     this.baseUrl = configuredBaseUrl.replace(/\/$/, '');
   }
 

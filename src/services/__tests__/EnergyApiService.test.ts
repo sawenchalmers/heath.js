@@ -153,7 +153,7 @@ describe('running an energy study', () => {
 
     const result = await energyApiService.runEnergyStudy(makeBuilding(), options, { onStatusUpdate: s => statuses.push(s.status), onComplete });
 
-    expect(fetchStub.mock.calls[0][0]).toBe('/proxy/daylight/v1/energy');
+    expect(fetchStub.mock.calls[0][0]).toBe('/proxy/engine/v1/energy');
     expect(fetchStub.mock.calls[0][1].method).toBe('POST');
     expect(statuses).toEqual(['running']);
     expect(onComplete).toHaveBeenCalledWith(result);

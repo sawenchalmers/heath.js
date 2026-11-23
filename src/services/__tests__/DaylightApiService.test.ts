@@ -148,7 +148,7 @@ describe('DaylightApiService requests', () => {
   it('checks the engine through v1\'s health check', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"status":"ok"}', { status: 200, headers: { 'content-type': 'application/json' } }));
     await expect(daylightApiService.checkEngineStatus()).resolves.toBe('available');
-    expect(String(fetchMock.mock.calls[0][0])).toBe('/proxy/daylight/health');
+    expect(String(fetchMock.mock.calls[0][0])).toBe('/proxy/engine/health');
     fetchMock.mockRestore();
   });
 
@@ -158,7 +158,7 @@ describe('DaylightApiService requests', () => {
       { status: 500, headers: { 'content-type': 'application/json' } },
     ));
     await expect(daylightApiService.runStudyForBuilding(makeBuilding())).rejects.toThrow(/TimeLimitExceeded/);
-    expect(String(fetchMock.mock.calls[0][0])).toBe('/proxy/daylight/v1/daylight');
+    expect(String(fetchMock.mock.calls[0][0])).toBe('/proxy/engine/v1/daylight');
     fetchMock.mockRestore();
   });
 });

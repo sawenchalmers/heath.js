@@ -1,5 +1,5 @@
-// Start the heath-engine dev server from heath.js (`npm run engine`), in its own terminal so it can be
-// stopped and restarted without touching Vite. Expects heath-engine next to heath.js with a .venv inside.
+// Start the old heath-engine (before the v1 API, #25) from heath.js (`npm run engine`), in its own terminal so it
+// can be stopped and restarted without touching Vite. Expects heath-engine next to heath.js with a .venv inside.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import net from 'node:net';
@@ -28,7 +28,7 @@ const portInUse = () => new Promise(resolve => {
 
 if (!existsSync(engineDir)) fail(`heath-engine not found at ${engineDir}. Set HEATH_ENGINE_DIR to its folder.`);
 if (!existsSync(python)) fail(`no virtual environment at ${path.join(engineDir, '.venv')}. Create it and install requirements.txt first (see the heath-engine README).`);
-if (await portInUse()) fail(`port ${PORT} is already in use, probably by an engine that is still running. Stop it first, or set HEATH_ENGINE_PORT (and VITE_DAYLIGHT_PROXY_TARGET to match).`);
+if (await portInUse()) fail(`port ${PORT} is already in use, probably by an engine that is still running. Stop it first, or set HEATH_ENGINE_PORT (and VITE_ENGINE_PROXY_TARGET to match).`);
 
 console.log(`Starting heath-engine from ${engineDir} on http://${HOST}:${PORT} (restarts when its Python code changes)`);
 const engine = spawn(python, ['-m', 'uvicorn', 'api.main:app', '--host', HOST, '--port', String(PORT), '--reload'], {

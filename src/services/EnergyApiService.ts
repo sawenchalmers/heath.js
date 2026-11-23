@@ -15,7 +15,7 @@ import { proxyUrl } from './proxyUrl';
 // ── Config ────────────────────────────────────────────────────────────────
 
 // The engine, forwarded under the app's own base path (see proxiedServices.ts).
-const DEFAULT_BASE_URL = proxyUrl('daylight');
+const DEFAULT_BASE_URL = proxyUrl('engine');
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -94,7 +94,7 @@ export class EnergyApiService {
   private readonly baseUrl: string;
 
   constructor(baseUrl?: string) {
-    const configured = baseUrl || import.meta.env.VITE_DAYLIGHT_API_BASE_URL || DEFAULT_BASE_URL;
+    const configured = baseUrl || import.meta.env.VITE_ENGINE_API_BASE_URL || DEFAULT_BASE_URL;
     this.baseUrl = configured.replace(/\/$/, '');
   }
 

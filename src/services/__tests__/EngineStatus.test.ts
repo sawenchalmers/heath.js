@@ -28,12 +28,12 @@ describe('probing the engine', () => {
   };
 
   it('reads the status and content type of the reply', async () => {
-    expect(await probeEngine('/proxy/daylight/v1/locations', vi.fn().mockResolvedValue(reply(200, 'application/json')))).toBe('available');
-    expect(await probeEngine('/proxy/daylight/v1/locations', vi.fn().mockResolvedValue(reply(502, 'text/html')))).toBe('unavailable');
-    expect(await probeEngine('/proxy/daylight/v1/locations', vi.fn().mockResolvedValue(reply(500, null)))).toBe('unavailable');
+    expect(await probeEngine('/proxy/engine/health', vi.fn().mockResolvedValue(reply(200, 'application/json')))).toBe('available');
+    expect(await probeEngine('/proxy/engine/health', vi.fn().mockResolvedValue(reply(502, 'text/html')))).toBe('unavailable');
+    expect(await probeEngine('/proxy/engine/health', vi.fn().mockResolvedValue(reply(500, null)))).toBe('unavailable');
   });
 
   it('counts a failed request, such as a refused connection or a timeout, as unavailable', async () => {
-    expect(await probeEngine('/proxy/daylight/v1/locations', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))).toBe('unavailable');
+    expect(await probeEngine('/proxy/engine/health', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))).toBe('unavailable');
   });
 });

@@ -2,8 +2,8 @@
 // (EnergyApiService), and prints heating, cooling and total energy per scene. Run it against the old
 // engine and again after the move to v1 (#25), and compare the saved results.
 //
-//   npm run check:energy                                  # engine at http://127.0.0.1:8000
-//   npm run check:energy -- --url http://127.0.0.1:8001 --save v1
+//   npm run check:energy                                  # v1 engine at http://127.0.0.1:8001
+//   npm run check:energy -- --url http://127.0.0.1:8000 --save old   # the old engine (npm run engine)
 //
 // Not part of the normal test run: it needs a running engine.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -81,7 +81,7 @@ async function runScenes(url: string) {
   return rows;
 }
 
-const url = argument('url', 'http://127.0.0.1:8000')!;
+const url = argument('url', 'http://127.0.0.1:8001')!;
 const save = argument('save');
 
 // The v1 engine has no location parameter: it uses its default weather file (Gothenburg TMYx).

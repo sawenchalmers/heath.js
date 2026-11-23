@@ -104,21 +104,37 @@ The application will normally be available at:
 http://localhost:5173
 ```
 
-Simulations need heath-engine running as well. With heath-engine cloned next to heath.js and its `.venv` set up (see the heath-engine README), start it in a second terminal:
+Simulations need the engine, [heath-engine](https://github.com/sawenchalmers/heath-engine), running as well. It runs with Docker; see its README for the set-up. Two local changes are needed on a laptop:
 
-```bash
-npm run engine
+- In its `.env`: leave `APP_KEYS` empty (no API key locally) and set `FOTON_BACKEND=reference` (daylight on the CPU, no GPU needed).
+- A `docker-compose.override.yml` that serves the API on port 8001 and removes the daylight worker's GPU reservation:
+
+```yaml
+services:
+  api:
+    ports: !override ["8001:8000"]
+  daylight:
+    deploy: !reset {}
+    environment: !reset {}
 ```
 
-It serves on `http://127.0.0.1:8000`, which the dev server proxies to, and restarts by itself when the engine's Python code changes. Stop it with Ctrl+C without affecting the dev server. If heath-engine is somewhere else, set `HEATH_ENGINE_DIR` to its folder.
+Then start it in a second terminal and leave that terminal open (on Windows with Docker in WSL, closing it can stop WSL and the engine):
+
+```bash
+docker compose up --build
+```
+
+The dev server forwards `/proxy/engine/` to `http://localhost:8001`, waiting up to 25 minutes for an answer; to use another engine, start the dev server with `VITE_ENGINE_PROXY_TARGET=<url>`. In development, daylight runs at preview quality (`VITE_DAYLIGHT_QUALITY=preview` in `.env.development`): final quality takes minutes per floor on a CPU.
+
+`npm run engine` still starts the old engine (heath-engine before the v1 API) on port 8000, from a heath-engine checkout with a `.venv`, for comparisons with it (#30).
 
 ### Check the energy results against an engine
 
 With an engine running, this sends five fixed scenes (a building alone and with different neighbours) through the app's own request code and prints heating, cooling and total energy per scene:
 
 ```bash
-npm run check:energy                                        # engine at http://127.0.0.1:8000
-npm run check:energy -- --url http://127.0.0.1:8001 --save v1
+npm run check:energy                                        # v1 engine at http://127.0.0.1:8001
+npm run check:energy -- --url http://127.0.0.1:8000 --save old   # the old engine
 ```
 
 `--save <name>` also writes the results to `docs/audits/energy-check/<name>.json`, so runs on different engines can be compared. It isn't part of `npm test`, since it needs a running engine.
