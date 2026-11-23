@@ -88,7 +88,7 @@ export interface EnergyRunCallbacks {
 
 // ── Service ────────────────────────────────────────────────────────────────
 
-class EnergyApiService {
+export class EnergyApiService {
   private readonly baseUrl: string;
 
   constructor(baseUrl?: string) {

@@ -112,6 +112,17 @@ npm run engine
 
 It serves on `http://127.0.0.1:8000`, which the dev server proxies to, and restarts by itself when the engine's Python code changes. Stop it with Ctrl+C without affecting the dev server. If heath-engine is somewhere else, set `HEATH_ENGINE_DIR` to its folder.
 
+### Check the energy results against an engine
+
+With an engine running, this sends five fixed scenes (a building alone and with different neighbours) through the app's own request code and prints heating, cooling and total energy per scene:
+
+```bash
+npm run check:energy                                        # engine at http://127.0.0.1:8000
+npm run check:energy -- --url http://127.0.0.1:8001 --save v1
+```
+
+`--save <name>` also writes the results to `docs/audits/energy-check/<name>.json`, so runs on different engines can be compared. It isn't part of `npm test`, since it needs a running engine.
+
 ### Build
 
 ```bash

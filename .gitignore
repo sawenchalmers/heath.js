@@ -25,3 +25,6 @@ dist-ssr
 .env
 .venv
 .venv/
+
+# TypeScript build info (tsc -b)
+*.tsbuildinfo
