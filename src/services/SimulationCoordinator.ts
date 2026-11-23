@@ -18,7 +18,8 @@ interface EnergyStudyOptions {
   building: BuildingModel;
   /** All buildings in the scene, used to find walls shared with `building`. */
   buildings: readonly BuildingModel[];
-  location: string;
+  /** Ignored since v1 (no locations); removed with the run flow in #25 step 25.4. */
+  location?: string;
   epsm: EPSMConstructionOptions | null;
   signal: AbortSignal;
   callbacks?: EnergyRunCallbacks;
@@ -54,7 +55,7 @@ export class SimulationCoordinator {
   }
 
   /** Run an energy study for one building, with shared walls taken from the other buildings. */
-  async runEnergyStudy({ building, buildings, location, epsm, signal, callbacks }: EnergyStudyOptions): Promise<CoordinatedEnergyResult> {
+  async runEnergyStudy({ building, buildings, epsm, signal, callbacks }: EnergyStudyOptions): Promise<CoordinatedEnergyResult> {
     const constructions = resolveEnergyConstructions(epsm, {
       wall: building.wall_construction,
       floor: building.floor_construction,
@@ -66,9 +67,7 @@ export class SimulationCoordinator {
       {
         constructions,
         building_program: building.building_program ?? 'Office',
-        hvac_system: building.hvac_system ?? 'Default HVAC',
         natural_ventilation: building.natural_ventilation ?? false,
-        location,
         neighbours: buildings,
       },
       callbacks,

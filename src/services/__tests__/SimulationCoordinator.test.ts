@@ -40,7 +40,6 @@ describe('energy study coordination', () => {
     await simulationCoordinator.runEnergyStudy({
       building,
       buildings,
-      location: 'Gothenburg',
       epsm,
       signal: new AbortController().signal,
     });

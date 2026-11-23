@@ -56,7 +56,7 @@ const argument = (name: string, fallback?: string) => {
 const round = (value: number | undefined) => (value === undefined ? null : Math.round(value * 10) / 10);
 
 /** Sends every scene, one after the other, and returns one row per scene. */
-async function runScenes(url: string, location: string) {
+async function runScenes(url: string) {
   const service = new EnergyApiService(url);
   const rows = [];
   for (const scene of SCENES) {
@@ -65,7 +65,6 @@ async function runScenes(url: string, location: string) {
       const result: EnergyStudyResult = await service.runEnergyStudy(target, {
         constructions: CONSTRUCTIONS,
         building_program: PROGRAM,
-        location,
         neighbours: [target, ...scene.neighbours],
       });
       rows.push({
@@ -83,18 +82,18 @@ async function runScenes(url: string, location: string) {
 }
 
 const url = argument('url', 'http://127.0.0.1:8000')!;
-const location = argument('location', 'gothenburg')!;
 const save = argument('save');
 
-console.log(`Energy check against ${url} (location ${location}, ${PROGRAM})`);
-const rows = await runScenes(url, location);
+// The v1 engine has no location parameter: it uses its default weather file (Gothenburg TMYx).
+console.log(`Energy check against ${url} (${PROGRAM})`);
+const rows = await runScenes(url);
 console.table(rows);
 
 if (save) {
   const folder = path.resolve('docs/audits/energy-check');
   mkdirSync(folder, { recursive: true });
   const file = path.join(folder, `${save}.json`);
-  writeFileSync(file, JSON.stringify({ engine: save, url, location, program: PROGRAM, constructions: CONSTRUCTIONS, date: new Date().toISOString(), scenes: rows }, null, 2) + '\n');
+  writeFileSync(file, JSON.stringify({ engine: save, url, program: PROGRAM, constructions: CONSTRUCTIONS, date: new Date().toISOString(), scenes: rows }, null, 2) + '\n');
   console.log(`Saved to ${path.relative(process.cwd(), file)}`);
 }
 if (rows.some(row => 'error' in row)) process.exitCode = 1;

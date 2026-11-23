@@ -1016,9 +1016,7 @@ export const SimpleBuildingCreator: React.FC = () => {
               {
                 constructions: resolvedConstructions,
                 building_program: building.building_program ?? 'Office',
-                hvac_system:      building.hvac_system      ?? 'Default HVAC',
                 natural_ventilation: building.natural_ventilation ?? false,
-                location,
                 neighbours: node.buildings,
               },
               {
