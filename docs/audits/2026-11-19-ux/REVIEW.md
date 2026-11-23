@@ -23,7 +23,7 @@ Not covered: import/export, Rhino context, reshape/rotate, the results dialog, d
 ## Existing issues confirmed
 
 - **#61** The weather tour dialog reappears every time the tab opens (16).
-- **#62** Floors sit in the collapsed Form & Massing section; once open, floors are a slider for a small integer (03).
+- **#62, now #87** Floors sit in the collapsed Form & Massing section; once open, floors are a slider for a small integer (03).
 - **#63** Dragging a selected building does nothing without the Move tool (04), and see N1: no drag does anything.
 - **#41** Escape closes neither the Run studies dialog nor the design history, and Tab moves focus out of the Run studies dialog to the tabs behind it.
 - **#5** The design history starts fresh each session (`DesignExplorationService`: "start fresh each session").
@@ -65,9 +65,9 @@ From the September "premium" review (`docs/audits/2026-09-06-premium/REVIEW.md`)
 | Run dialog: focus escapes, Escape doesn't close | **Still open** (#41) |
 | Saving is tied to running studies | **Still open** ("Save and run" only; #28) |
 | Design history: nothing selected on open, not persisted | **Still open** (N10, #5) |
-| Numeric inputs beside sliders (floors, height, WWR, shading) | **Still open**: sliders only (#62) |
+| Numeric inputs beside sliders (floors, height, WWR, shading) | **Still open**: sliders only (#62, now #87) |
 | Overhang depth active while the overhang is off | **Still open**: the depth slider stays enabled |
-| Form & Massing should open first | **Still open** (#62, #36) |
+| Form & Massing should open first | **Still open** (#62, now #87, #36) |
 | Text 10–11 px too small | **Still open** (N18) |
 | Emoji tab navigation | **Still open** (N6) |
 | Mini history card always visible | **Still open** (N10) |
