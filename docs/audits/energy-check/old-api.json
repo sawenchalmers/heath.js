@@ -1,0 +1,50 @@
+{
+  "engine": "old-api",
+  "url": "http://127.0.0.1:8000",
+  "location": "gothenburg_tmyx",
+  "program": "Office",
+  "constructions": {
+    "wall": "Brick Wall with Insulation",
+    "floor": "Concrete Floor",
+    "roof": "Insulated Roof",
+    "window": "Triple Glazed Low-E Window"
+  },
+  "date": "2026-11-23T12:00:13.541Z",
+  "scenes": [
+    {
+      "scene": "Target alone",
+      "heating_kwh_m2": 91.6,
+      "cooling_kwh_m2": 41.7,
+      "total_kwh_m2": 202.6,
+      "seconds": 24.2
+    },
+    {
+      "scene": "Same-height neighbour on part of the east wall",
+      "heating_kwh_m2": 87.8,
+      "cooling_kwh_m2": 37.2,
+      "total_kwh_m2": 194.3,
+      "seconds": 12.1
+    },
+    {
+      "scene": "Lower neighbour (2 of 3 storeys)",
+      "heating_kwh_m2": 89.1,
+      "cooling_kwh_m2": 38.8,
+      "total_kwh_m2": 197.2,
+      "seconds": 12.1
+    },
+    {
+      "scene": "Lower neighbour slid along the wall",
+      "heating_kwh_m2": 89.1,
+      "cooling_kwh_m2": 38.8,
+      "total_kwh_m2": 197.1,
+      "seconds": 12.1
+    },
+    {
+      "scene": "Neighbour not touching",
+      "heating_kwh_m2": 91.6,
+      "cooling_kwh_m2": 41.7,
+      "total_kwh_m2": 202.6,
+      "seconds": 3
+    }
+  ]
+}
