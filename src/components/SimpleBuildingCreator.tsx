@@ -33,6 +33,7 @@ import { energyRunAfterRerunError } from '../services/EnergyRunUpdates';
 import { DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { SimulationProgressCard, type SimulationTaskState } from './model/SimulationProgressCard';
 import { isSimulationInProgress } from '../utils/simulationProgress';
+import { RunTracker, type Run } from '../utils/runTracker';
 import { DaylightLegend } from './model/DaylightLegend';
 import { DesignGraphOverviewCard } from './model/DesignGraphOverviewCard';
 import { EngineUnavailableNotice, SIMULATIONS_UNAVAILABLE_MESSAGE } from './model/EngineUnavailableNotice';
@@ -65,11 +66,10 @@ export const SimpleBuildingCreator: React.FC = () => {
   const [daylightResultsByBuildingId, setDaylightResultsByBuildingId] = useState<Record<string, DaylightRunSummary>>({});
   const analysisCacheRef = useRef(new Map<string, { id: string; result: DaylightRunSummary }>());
   const [daylightLegend, setDaylightLegend] = useState<DaylightLegendState | null>(null);
-  const runAbortControllerRef = useRef<AbortController | null>(null);
+  // Save and run's runs, each with its own controllers and cancelled mark (see RunTracker).
+  const runTracker = useRef(new RunTracker()).current;
+  // The energy study last started, by Save and run or by the design graph's rerun: either one aborts the other.
   const energyAbortControllerRef = useRef<AbortController | null>(null);
-  // Set when the user cancels a run from the progress card, so a run that is still preparing
-  // (its requests not yet sent) stops before sending them.
-  const runCancelledRef = useRef(false);
   const selectedBuildingRef = useRef<BuildingData | null>(null);
   const suspendedAnalysisModeRef = useRef<'df' | 'sda' | null>(null);
 
@@ -275,6 +275,7 @@ export const SimpleBuildingCreator: React.FC = () => {
   const runDaylightSimulation = React.useCallback(async (
     targetBuilding: BuildingModel,
     configurationName: string,
+    run: Run,
     buildingsForSnapshot?: BuildingModel[],
     options?: { recordInGraph?: boolean; useGhosting?: boolean }
   ) => {
@@ -348,9 +349,6 @@ export const SimpleBuildingCreator: React.FC = () => {
       pendingNodeId = pendingNode.id;
     }
 
-    runAbortControllerRef.current?.abort();
-    runAbortControllerRef.current = new AbortController();
-    setIsSaveAndRunInProgress(true);
     setSimulationProgress(previous => ({
       daylight: { status: 'queued', message: 'Sending daylight studies…' },
       energy: previous?.energy ?? { status: 'preparing', message: 'Validating constructions…' },
@@ -369,7 +367,7 @@ export const SimpleBuildingCreator: React.FC = () => {
       }
       const resultsById = await simulationCoordinator.runDaylightStudySet({
         buildings: snapshotBuildings,
-        signal: runAbortControllerRef.current.signal,
+        signal: run.daylight.signal,
         onStatus: (_building, { status, error }) => {
           setSimulationProgress(previous => previous ? {
             ...previous,
@@ -414,7 +412,7 @@ export const SimpleBuildingCreator: React.FC = () => {
     } catch (error) {
       // One building's study failed (or the run was cancelled): stop the other buildings'
       // studies too, since the run as a whole has failed and their results would be discarded.
-      runAbortControllerRef.current?.abort();
+      run.daylight.abort();
       const message = error instanceof Error ? error.message : 'Unknown daylight simulation error';
       setSimulationProgress(previous => previous ? { ...previous, daylight: { status: 'failed', message } } : previous);
 
@@ -433,17 +431,28 @@ export const SimpleBuildingCreator: React.FC = () => {
       setDaylightLegend(null);
 
       throw error;
-    } finally {
-      runAbortControllerRef.current = null;
     }
   }, [scene, buildings, daylightResultsByBuildingId, setSceneAppearanceMode, showDaylightAnalysis]);
 
   const handleSaveConfigurationConfirm = async (name: string) => {
+    // A new run (a run still going is aborted). Run studies is unavailable from here until this run ends.
+    const run = runTracker.startRun();
+    setIsSaveAndRunInProgress(true);
+    /** This run is over: re-enable Run studies, unless a newer run has taken over in the meantime. */
+    const endRun = () => {
+      if (runTracker.finishRun(run)) setIsSaveAndRunInProgress(false);
+    };
+
     // Check the engine before the run's node is created, so no failed node is left behind. Confirming the
     // name and Retry both start here. An earlier run's progress card is closed so the notice is visible.
     if (await daylightApiService.checkEngineStatus() === 'unavailable') {
       setSimulationProgress(null);
       setEngineUnavailableNoticeKey(Date.now());
+      endRun();
+      return;
+    }
+    if (run.cancelled || !runTracker.isCurrentRun(run)) {
+      endRun();
       return;
     }
     setEngineUnavailableNoticeKey(null);
@@ -452,25 +461,28 @@ export const SimpleBuildingCreator: React.FC = () => {
     const targetBuilding = runSnapshot.find(building => building.id === selectedBuildingRef.current?.id)
       ?? runSnapshot[0];
     if (!targetBuilding) {
+      endRun();
       throw new Error('At least one building is required to run daylight analysis.');
     }
 
     lastRunNameRef.current = name;
-    runCancelledRef.current = false;
     setSimulationProgress({
       daylight: { status: 'preparing', message: 'Preparing geometry…' },
       energy: { status: 'preparing', message: 'Validating EPSM constructions…' },
     });
 
     const epsmOpts = await getEPSMConstructionOptions().catch(() => null);
-    // Cancelled with ✕ while preparing: nothing has been sent or saved yet, so just stop.
-    if (runCancelledRef.current) return;
+    // Cancelled (or replaced by a newer run) while preparing: nothing has been sent or saved yet, so just stop.
+    if (run.cancelled || !runTracker.isCurrentRun(run)) {
+      endRun();
+      return;
+    }
 
     energyAbortControllerRef.current?.abort();
-    const energyAbortController = new AbortController();
+    const energyAbortController = run.energy;
     energyAbortControllerRef.current = energyAbortController;
 
-    const daylightPromise = runDaylightSimulation(targetBuilding, name, runSnapshot);
+    const daylightPromise = runDaylightSimulation(targetBuilding, name, run, runSnapshot);
     const energyPromise = (async () => {
       setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'queued', message: 'Sending energy study…' } } : previous);
       return simulationCoordinator.runEnergyStudy({
@@ -491,7 +503,7 @@ export const SimpleBuildingCreator: React.FC = () => {
     });
 
     const [, energySettled] = await Promise.allSettled([daylightPromise, energyPromise]);
-    setIsSaveAndRunInProgress(false);
+    endRun();
     // Aborted by whatever took over (reinstating another configuration, or an energy rerun in the design graph):
     // the current node is no longer this run's, so leave it alone, whether energy failed or had already finished (#28).
     if (energyAbortController.signal.aborted) return;
@@ -521,11 +533,12 @@ export const SimpleBuildingCreator: React.FC = () => {
 
   /** The progress card's ✕: while a study is on its way it cancels the run (both requests); afterwards it only closes the card. */
   const handleDismissProgress = () => {
-    if (simulationProgress && isSimulationInProgress(simulationProgress.daylight, simulationProgress.energy)) {
-      runCancelledRef.current = true;
+    // A run in progress also covers a Retry still checking the engine, while the card shows the earlier run.
+    const runInProgress = isSaveAndRunInProgress
+      || (simulationProgress !== null && isSimulationInProgress(simulationProgress.daylight, simulationProgress.energy));
+    if (runInProgress) {
       // The daylight study fails with "Daylight run cancelled" (also on its design node); the energy study is dropped.
-      runAbortControllerRef.current?.abort();
-      energyAbortControllerRef.current?.abort();
+      runTracker.cancelCurrentRun();
     }
     setSimulationProgress(null);
   };
@@ -535,7 +548,7 @@ export const SimpleBuildingCreator: React.FC = () => {
   };
 
   const handleReinstateConfiguration = (nodeId: string) => {
-    runAbortControllerRef.current?.abort();
+    runTracker.cancelCurrentRun();
     energyAbortControllerRef.current?.abort();
 
     const node = designExplorationService.reinstateConfiguration(nodeId);
@@ -667,13 +680,13 @@ export const SimpleBuildingCreator: React.FC = () => {
 
   useEffect(() => {
     return () => {
-      runAbortControllerRef.current?.abort();
+      runTracker.cancelCurrentRun();
       if (scene) {
         daylightVisualizationService.clear(scene);
       }
       setSceneAppearanceMode({ kind: 'normal' });
     };
-  }, [scene, setSceneAppearanceMode]);
+  }, [scene, setSceneAppearanceMode, runTracker]); // runTracker never changes (a ref's value)
 
   // Initialize with a sample rectangular building when the scene is ready (only once)
   useEffect(() => {
