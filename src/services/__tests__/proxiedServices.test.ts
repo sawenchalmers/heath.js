@@ -51,8 +51,8 @@ describe('nginx forwards the services the app uses', () => {
     expect(engine).toContain('proxy_read_timeout 25m;');
   });
 
-  it('keeps the login session and the user\'s CID from the engine', () => {
-    const block = locationBlock(`/${PROXY_PREFIX}engine/`)!;
+  it.each(services)('keeps the login session and the user\'s CID from %s', service => {
+    const block = locationBlock(`/${PROXY_PREFIX}${service}/`)!;
     expect(block).toContain('proxy_set_header Cookie "";');
     expect(block).toContain('proxy_set_header X-Ace-User "";');
   });
