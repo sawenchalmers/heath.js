@@ -4,7 +4,7 @@ How heath.js is developed: one developer working with an AI coding assistant (Cl
 
 Most of it is project-neutral. Parts specific to heath.js are marked as such.
 
-**Version 6** (24 November 2026). History at the end.
+**Version 7** (24 November 2026). History at the end.
 
 ## Working together
 
@@ -14,6 +14,7 @@ Most of it is project-neutral. Parts specific to heath.js are marked as such.
 - **Stop uncommitted.** The developer reviews and tests each change before it's committed (see "Reviewing a change before committing"). "Do b" means implement b, not commit it.
 - **The simplest thing that works.** No helper, script or abstraction unless it earns its place. When a change looks over-engineered, say so and simplify.
 - **Look up current versions** before pinning any action, image, package or tool; never pin from memory.
+- **Explain in plain words when something is unclear,** before going on, and especially for back-end and infrastructure work (servers, proxies, certificates, containers), where the developer is less at home: an everyday picture (e.g. a request as a letter passing several receptions, a certificate as an ID card with a stamp), or an explainer page when there are several moving parts.
 - **Plain Markdown in replies,** no HTML tags.
 
 ## Planning layers
@@ -52,6 +53,7 @@ Each kind of information has one home; the others link to it.
 ## Reviews
 
 - **Independent review before a pull request:** a separate agent, without the conversation, reviews the whole branch diff. Every finding is verified, then the confirmed ones are put to the developer one at a time, each with options and a recommendation; the answer is a fix in this pull request, an issue or comment, or nothing. The fixes can then be reviewed together in one round, with `// REVIEW:` comments, listing the ones that change behaviour with test steps; each fix still gets its own commit.
+- **A second review of the fixes, when they touch security or deployment** (certificates, keys, timeouts, anything that runs on a server): a fresh agent checks just the fixes before the pull request, since they are new code nobody independent has seen. Ordinary changes need only the one review.
 - **A proportion review** when the developer doubts a change's size: is it over-engineered for what it does?
 - **Plans get an independent review too:** consistency between the planning layers, dependencies and order, feasibility, gaps. Bookkeeping fixes are made directly; decisions go to the developer one by one.
 - **UX reviews can be run by the assistant:** drive the app in a real browser (Playwright, on the real GPU) as a first-time user, compare with earlier reviews, and file the result in `docs/audits/<date>-<topic>/` with an outcome table and only the screenshots it cites, scaled down.
@@ -61,6 +63,7 @@ Each kind of information has one home; the others link to it.
 **Per change**
 - An issue first: summary, how it works today, requirements as checkboxes, related issues.
 - For anything that runs somewhere else (a server, CI, another service), inspect the target environment early, with read-only checks, before designing what depends on it.
+- Changes on a server are made by the developer, one step at a time: the assistant gives each step's commands with what they do and why, starting with a backup and naming the way back, and checks the output before giving the next step.
 
 **Branch**
 - One short-lived branch per pull request, from the latest `main`, named after the issue (e.g. `40-deploy`). `main` only changes through pull requests.
@@ -104,6 +107,7 @@ Each kind of information has one home; the others link to it.
 - Mention people only neutrally ("for reference"). Never ask anyone for input, feedback or action unless the developer says so.
 - Public text never claims someone's review or approval ("checked by …", "approved by …") unless that person has actually given it in this session.
 - Public repositories hold no server details: no hostnames, addresses, user names or keys in issues, commits or files.
+- Secrets never pass through the chat: keys go from machine to machine at hidden prompts (`read -s`), and checks print names or `<hidden>` instead of values.
 - Messages to others: the plain first draft is usually best.
 
 ## Keeping this file up to date
@@ -112,6 +116,7 @@ After each pull request, and after a planning session that changes the method, c
 
 ## History
 
+- **Version 7** (24 November 2026, after PR #112 and connecting the engine, #59): a second independent review of the fixes when they touch security or deployment; server changes one step at a time, each explained, with a backup and a way back; secrets never through the chat. Plain-language explanations when something is unclear.
 - **Version 6** (24 November 2026, after PR #111): the review's findings are decided one at a time, and the fixes reviewed together in one round. Zoom out before the next issue.
 - **Version 5** (23 November 2026, during #25): temporary `// REVIEW:` comments on each change of a larger diff, removed before committing.
 - **Version 4** (19 November 2026): planning layers (release issue, work plan by workstream, ideas issue, milestone, snapshot page); triage one by one, then a cross-check; independent reviews of plans; self-run UX reviews; issue notes for drafts; no unrequested asks; checking what's staged; care with "Closes #n". Moved into the repository so other projects can use it as a starting point.
