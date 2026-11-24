@@ -9,6 +9,7 @@ import { getThemeColorAsHex } from '../utils/themeColors';
 import { WindowService } from '../services/WindowService';
 import { BuildingService } from '../services/BuildingService';
 import { logger } from '../utils/logger';
+import { disposeObject3D, firstMaterialOf } from '../utils/disposeObject3D';
 import { clampWwr, DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { calculateBuildingMetrics, validateFootprint } from '../utils/buildingMetrics';
 import { buildingConfigFromModel, cloneBuildingModels } from '../utils/buildingModel';
@@ -381,10 +382,7 @@ export const useBuildingManager = (
 
     if (visualOwner.floorLines) {
       scene.remove(visualOwner.floorLines);
-      visualOwner.floorLines.children.forEach(child => {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) (child.material as THREE.Material).dispose();
-      });
+      visualOwner.floorLines.children.forEach(disposeObject3D);
     }
     updatedBuilding.floorLines = config.floors > 1
       ? createFloorLines(building.points, config.floors, config.floorHeight, scene, building.id)
@@ -513,10 +511,7 @@ export const useBuildingManager = (
         // Remove floor lines
         if (building.floorLines) {
           scene.remove(building.floorLines);
-          building.floorLines.children.forEach(child => {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) (child.material as THREE.Material).dispose();
-          });
+          building.floorLines.children.forEach(disposeObject3D);
         }
 
         // AGGRESSIVE CLEANUP: Remove ALL drawing elements that could be related
@@ -542,7 +537,7 @@ export const useBuildingManager = (
                                  userData.isFloorLine;
 
           // Check for generic drawing objects (Points, Lines that might be footprint elements)
-          const objectMaterial = Array.isArray(child.material) ? child.material[0] : child.material;
+          const objectMaterial = firstMaterialOf(child);
           const materialColor = objectMaterial && 'color' in objectMaterial
             ? (objectMaterial as THREE.Material & { color: THREE.Color }).color
             : null;
@@ -579,16 +574,7 @@ export const useBuildingManager = (
 
         objectsToRemove.forEach(obj => {
           scene.remove(obj);
-          if (obj.geometry) {
-            obj.geometry.dispose();
-          }
-          if (obj.material) {
-            if (Array.isArray(obj.material)) {
-              obj.material.forEach(mat => mat.dispose());
-            } else {
-              obj.material.dispose();
-            }
-          }
+          disposeObject3D(obj);
         });
 
         // NUCLEAR OPTION: If objects still remain, remove all Points and Lines without building associations
@@ -613,14 +599,7 @@ export const useBuildingManager = (
           }, 'BuildingManager');
           remainingDrawingObjects.forEach(obj => {
             scene.remove(obj);
-            if (obj.geometry) obj.geometry.dispose();
-            if (obj.material) {
-              if (Array.isArray(obj.material)) {
-                obj.material.forEach(mat => mat.dispose());
-              } else {
-                obj.material.dispose();
-              }
-            }
+            disposeObject3D(obj);
           });
         }
 
@@ -638,14 +617,7 @@ export const useBuildingManager = (
         }, 'BuildingManager');
         allPoints.forEach(pointsObj => {
           scene.remove(pointsObj);
-          if (pointsObj.geometry) pointsObj.geometry.dispose();
-          if (pointsObj.material) {
-            if (Array.isArray(pointsObj.material)) {
-              pointsObj.material.forEach(mat => mat.dispose());
-            } else {
-              pointsObj.material.dispose();
-            }
-          }
+          disposeObject3D(pointsObj);
         });
       }
       return prev.filter(b => b.id !== id);

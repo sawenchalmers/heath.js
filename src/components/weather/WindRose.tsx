@@ -19,33 +19,27 @@ interface WindRoseProps {
   // No more artificial scaling or approximations!
 }
 
-// Helper function to format percentages
-const formatPercentage = (value: number): string => {
-  if (value < 0.1 && value > 0) return '<0.1%';
-  if (value < 1) return value.toFixed(1) + '%';
-  return value.toFixed(0) + '%';
-};
+// Constants, kept outside the component so its memoised calculations never see a new copy.
+// Process seasonal wind data
+const seasons = ['Winter', 'Spring', 'Summer', 'Autumn'];
+
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const seasonalMonths = [
+  [11, 0, 1], // Winter: Dec, Jan, Feb
+  [2, 3, 4],  // Spring: Mar, Apr, May
+  [5, 6, 7],  // Summer: Jun, Jul, Aug
+  [8, 9, 10]  // Autumn: Sep, Oct, Nov
+];
 
 export const WindRose: React.FC<WindRoseProps> = ({
   windRoseData,
   avgWindSpeed,
-  predominantDirection,
   hourlyWindData = []
 }) => {
-  const { directions, frequencies } = windRoseData;
+  const { directions } = windRoseData;
   const [viewMode, setViewMode] = useState<'windRose' | 'heatmap'>('windRose');
-  const [hoveredSector, setHoveredSector] = useState<{direction: string, speedRange: string, frequency: number} | null>(null);
   
-  // Find max frequency for scaling
-  const maxFrequency = Math.max(...frequencies.flat());
-  
-  // Convert predominant direction to compass direction
-  const predominantIndex = Math.floor(((predominantDirection + 11.25) % 360) / 22.5);
-  const predominantCompass = directions[predominantIndex] || 'N';
-
-  // Calculate total wind frequency
-  const totalFrequency = frequencies.flat().reduce((sum, freq) => sum + freq, 0);
-
   // Enhanced color scale for different speed ranges with better contrast
   const speedColors = [
     '#1E40AF', // 0-2 m/s - deep blue
@@ -55,19 +49,6 @@ export const WindRose: React.FC<WindRoseProps> = ({
     '#EF4444', // 8-10 m/s - red
     '#A855F7', // 10-15 m/s - purple
     '#EC4899'  // 15+ m/s - pink
-  ];
-
-  // Calculate calm percentage (very low wind speeds)
-  const calmPercentage = 100 - totalFrequency;
-
-  // Process seasonal wind data
-  const seasons = ['Winter', 'Spring', 'Summer', 'Autumn'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const seasonalMonths = [
-    [11, 0, 1], // Winter: Dec, Jan, Feb
-    [2, 3, 4],  // Spring: Mar, Apr, May
-    [5, 6, 7],  // Summer: Jun, Jul, Aug
-    [8, 9, 10]  // Autumn: Sep, Oct, Nov
   ];
 
   // Create wind speed heatmap matrix [month][hour]
@@ -106,7 +87,7 @@ export const WindRose: React.FC<WindRoseProps> = ({
           : avgWindSpeed
       )
     );
-  }, [hourlyWindData, avgWindSpeed, months]);
+  }, [hourlyWindData, avgWindSpeed]);
 
   // Calculate seasonal statistics
   const seasonalStats = useMemo(() => {
@@ -128,7 +109,7 @@ export const WindRose: React.FC<WindRoseProps> = ({
         monthsInSeason
       };
     });
-  }, [windSpeedMatrix, avgWindSpeed, seasons, seasonalMonths]);
+  }, [windSpeedMatrix, avgWindSpeed]);
 
   // Memoized color calculation function for wind speed
   const getWindSpeedColor = useMemo(() => {
@@ -213,7 +194,7 @@ export const WindRose: React.FC<WindRoseProps> = ({
     });
     
     return allSeasonalData;
-  }, [hourlyWindData, seasons, seasonalMonths, directions, frequencies]);
+  }, [hourlyWindData, directions]);
 
   // Calculate global maximum frequency across all seasons for consistent scaling
   const globalMaxFrequency = useMemo(() => {

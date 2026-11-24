@@ -5,9 +5,12 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { Point3D } from '../types/building';
 import { getThemeColorAsHex } from '../utils/themeColors';
 
+/** A marker or line with a running animation, which it can stop. */
+type Animated = THREE.Object3D & { stopAnimation?: () => void };
+
 export class DrawingService {
   private scene: THREE.Scene;
-  private animationFrameIds: Map<THREE.Mesh, number> = new Map();
+  private animationFrameIds: Map<THREE.Object3D, number> = new Map();
   
   // Reusable geometries and materials for better performance
   private static pointGeometry: THREE.SphereGeometry | null = null;
@@ -192,7 +195,7 @@ export class DrawingService {
       this.animationFrameIds.set(marker, frameId);
     };
     
-    (marker as any).stopAnimation = () => { isActive = false; };
+    (marker as Animated).stopAnimation = () => { isActive = false; };
     animate();
     return marker;
   }
@@ -259,10 +262,10 @@ export class DrawingService {
       }
       
       const frameId = requestAnimationFrame(animate);
-      this.animationFrameIds.set(line as any, frameId);
+      this.animationFrameIds.set(line, frameId);
     };
     
-    (line as any).stopAnimation = () => { isActive = false; };
+    (line as Animated).stopAnimation = () => { isActive = false; };
     animate();
     
     this.scene.add(line);
@@ -280,10 +283,10 @@ export class DrawingService {
   clearLines(lines: (THREE.Line | Line2)[]): void {
     lines.forEach(line => {
       // Stop any animations
-      if (this.animationFrameIds.has(line as any)) {
-        const frameId = this.animationFrameIds.get(line as any)!;
+      if (this.animationFrameIds.has(line)) {
+        const frameId = this.animationFrameIds.get(line)!;
         cancelAnimationFrame(frameId);
-        this.animationFrameIds.delete(line as any);
+        this.animationFrameIds.delete(line);
       }
       
       this.scene.remove(line);
@@ -304,9 +307,7 @@ export class DrawingService {
     }
     
     // Stop animation if it's a snap marker
-    if ((marker as any).stopAnimation) {
-      (marker as any).stopAnimation();
-    }
+    (marker as Animated).stopAnimation?.();
     
     this.scene.remove(marker);
     // Only dispose geometry if it's not shared
@@ -325,16 +326,14 @@ export class DrawingService {
 
   clearPreviewLine(line: THREE.Line | Line2): void {
     // Stop any animations
-    if (this.animationFrameIds.has(line as any)) {
-      const frameId = this.animationFrameIds.get(line as any)!;
+    if (this.animationFrameIds.has(line)) {
+      const frameId = this.animationFrameIds.get(line)!;
       cancelAnimationFrame(frameId);
-      this.animationFrameIds.delete(line as any);
+      this.animationFrameIds.delete(line);
     }
     
     // Stop animation if it's an animated line
-    if ((line as any).stopAnimation) {
-      (line as any).stopAnimation();
-    }
+    (line as Animated).stopAnimation?.();
     
     this.scene.remove(line);
     line.geometry.dispose();

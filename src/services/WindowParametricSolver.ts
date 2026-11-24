@@ -27,8 +27,8 @@ export function solveWindowParams(config: WindowParametricConfig): WindowParamet
   const targetWindowArea = wwr * wallArea;
 
   // Start by guessing number of windows based on default window size
-  let estimatedWindowWidth = windowWidth;
-  let estimatedWindowArea = estimatedWindowWidth * windowHeight;
+  const estimatedWindowWidth = windowWidth;
+  const estimatedWindowArea = estimatedWindowWidth * windowHeight;
   let numWindows = Math.max(1, Math.floor(targetWindowArea / estimatedWindowArea));
 
   // Ensure we don't exceed what can fit along the edge

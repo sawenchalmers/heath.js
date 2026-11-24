@@ -265,6 +265,8 @@ export function waitForThemeColors(): Promise<boolean> {
     const testVariables = ['--color-primary', '--color-building-blue', '--color-scene-background'];
     
     let settled = false;
+    // Assigned once, below; a let because finish (defined first) reads it, possibly before the assignment.
+    // eslint-disable-next-line prefer-const
     let timeoutId: number | undefined;
     const finish = (loaded: boolean) => {
       if (settled) return;

@@ -32,7 +32,7 @@ export const MonthlyHeatBalanceChart: React.FC<Props> = ({ data }) => {
   const ph = H - mt - mb;
 
   const get = (key: string, i: number): number => {
-    const arr = (data as Record<string, number[]>)[key];
+    const arr = (data as unknown as Record<string, number[]>)[key];
     return arr ? (arr[i] ?? 0) : 0;
   };
 
