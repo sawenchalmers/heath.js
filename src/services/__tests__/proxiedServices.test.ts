@@ -78,11 +78,24 @@ describe('nginx forwards the services the app uses', () => {
     expect(dockerfile).toMatch(/ENGINE_TLS_NAME=""/);
     expect(dockerfile).toMatch(/ENGINE_API_KEY=""/);
     expect(dockerfile).toMatch(/ENGINE_CA_FILE=\/etc\/ssl\/certs\/ca-certificates\.crt/);
+    expect([...dockerfile.matchAll(/ENGINE_API_KEY=("[^"]*"|\S*)/g)].map(match => match[1])).toEqual(['""']);
     // No IP address or Bearer key written into either file.
     for (const file of [nginxConf, dockerfile]) {
       expect(file).not.toMatch(/\b\d{1,3}(\.\d{1,3}){3}\b/);
       expect(file).not.toMatch(/Bearer [^$"]/);
     }
+  });
+
+  it('keeps the settings that protect every forward and the engine\'s long requests', () => {
+    // At server level (indented by exactly four spaces, i.e. outside any location): certificate
+    // checks for every forward, and bodies up to 10 MB however a request arrives.
+    expect(nginxConf).toMatch(/^ {4}proxy_ssl_verify on;$/m);
+    expect(nginxConf).toMatch(/^ {4}client_max_body_size 10m;$/m);
+    const engine = locationBlock(`/${PROXY_PREFIX}engine/`)!;
+    expect(engine).toContain('proxy_send_timeout 25m;');
+    expect(engine).toContain('proxy_read_timeout 25m;');
+    // The start-up step that trims the key runs before the template is filled in (20-envsubst).
+    expect(dockerfile).toMatch(/COPY --chmod=755 nginx-engine-key\.envsh \/docker-entrypoint\.d\/1[0-9]-[\w-]+\.envsh/);
   });
 
   it('nginx forwards nothing under the proxy prefix that the app doesn\'t know about', () => {
