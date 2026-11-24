@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertCircle, Check, Loader2, X } from 'lucide-react';
+import { isSimulationInProgress } from '../../utils/simulationProgress';
 
 export type SimulationTaskStatus = 'preparing' | 'queued' | 'running' | 'complete' | 'failed' | 'skipped';
 
@@ -36,6 +37,7 @@ const TaskRow = ({ label, task }: { label: string; task: SimulationTaskState }) 
 
 export const SimulationProgressCard: React.FC<SimulationProgressCardProps> = ({ daylight, energy, onRetry, onDismiss }) => {
   const hasFailure = daylight.status === 'failed' || energy.status === 'failed';
+  const inProgress = isSimulationInProgress(daylight, energy);
   return (
     <aside className="model-progress-card absolute z-40 w-[296px] rounded-xl border border-slate-200 bg-white p-3 shadow-lg" aria-live="polite">
       <div className="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -43,7 +45,9 @@ export const SimulationProgressCard: React.FC<SimulationProgressCardProps> = ({ 
           <div className="text-[12px] font-semibold text-slate-900">Simulation progress</div>
           <div className="text-[10px] text-slate-500">Results appear as each study finishes.</div>
         </div>
-        <button type="button" onClick={onDismiss} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Dismiss simulation progress"><X className="h-4 w-4" /></button>
+        {inProgress
+          ? <button type="button" onClick={onDismiss} className="rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Stop the studies that are running">Cancel</button>
+          : <button type="button" onClick={onDismiss} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close" title="Close"><X className="h-4 w-4" /></button>}
       </div>
       <div className="divide-y divide-slate-100">
         <TaskRow label="Daylight" task={daylight} />

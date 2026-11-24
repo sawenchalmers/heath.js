@@ -32,6 +32,7 @@ import { createEnergyInputFingerprint, isEnergyRunCurrent, retainValidDaylightRe
 import { energyRunAfterRerunError } from '../services/EnergyRunUpdates';
 import { DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { SimulationProgressCard, type SimulationTaskState } from './model/SimulationProgressCard';
+import { isSimulationInProgress } from '../utils/simulationProgress';
 import { DaylightLegend } from './model/DaylightLegend';
 import { DesignGraphOverviewCard } from './model/DesignGraphOverviewCard';
 import { EngineUnavailableNotice, SIMULATIONS_UNAVAILABLE_MESSAGE } from './model/EngineUnavailableNotice';
@@ -66,6 +67,9 @@ export const SimpleBuildingCreator: React.FC = () => {
   const [daylightLegend, setDaylightLegend] = useState<DaylightLegendState | null>(null);
   const runAbortControllerRef = useRef<AbortController | null>(null);
   const energyAbortControllerRef = useRef<AbortController | null>(null);
+  // Set when the user cancels a run from the progress card, so a run that is still preparing
+  // (its requests not yet sent) stops before sending them.
+  const runCancelledRef = useRef(false);
   const selectedBuildingRef = useRef<BuildingData | null>(null);
   const suspendedAnalysisModeRef = useRef<'df' | 'sda' | null>(null);
 
@@ -408,6 +412,9 @@ export const SimpleBuildingCreator: React.FC = () => {
 
       return result;
     } catch (error) {
+      // One building's study failed (or the run was cancelled): stop the other buildings'
+      // studies too, since the run as a whole has failed and their results would be discarded.
+      runAbortControllerRef.current?.abort();
       const message = error instanceof Error ? error.message : 'Unknown daylight simulation error';
       setSimulationProgress(previous => previous ? { ...previous, daylight: { status: 'failed', message } } : previous);
 
@@ -449,12 +456,15 @@ export const SimpleBuildingCreator: React.FC = () => {
     }
 
     lastRunNameRef.current = name;
+    runCancelledRef.current = false;
     setSimulationProgress({
       daylight: { status: 'preparing', message: 'Preparing geometry…' },
       energy: { status: 'preparing', message: 'Validating EPSM constructions…' },
     });
 
     const epsmOpts = await getEPSMConstructionOptions().catch(() => null);
+    // Cancelled with ✕ while preparing: nothing has been sent or saved yet, so just stop.
+    if (runCancelledRef.current) return;
 
     energyAbortControllerRef.current?.abort();
     const energyAbortController = new AbortController();
@@ -507,6 +517,17 @@ export const SimpleBuildingCreator: React.FC = () => {
         energyRun: { status: 'failed', buildingId: targetBuilding.id, error: energySettled.reason instanceof Error ? energySettled.reason.message : 'Energy simulation failed.' },
       });
     }
+  };
+
+  /** The progress card's ✕: while a study is on its way it cancels the run (both requests); afterwards it only closes the card. */
+  const handleDismissProgress = () => {
+    if (simulationProgress && isSimulationInProgress(simulationProgress.daylight, simulationProgress.energy)) {
+      runCancelledRef.current = true;
+      // The daylight study fails with "Daylight run cancelled" (also on its design node); the energy study is dropped.
+      runAbortControllerRef.current?.abort();
+      energyAbortControllerRef.current?.abort();
+    }
+    setSimulationProgress(null);
   };
 
   const handleOpenDesignGraph = () => {
@@ -820,6 +841,7 @@ export const SimpleBuildingCreator: React.FC = () => {
               onExport={exportBuildings}
               onClearAll={editor.remove}
               onSaveConfiguration={handleSaveConfiguration}
+              isRunning={isSaveAndRunInProgress}
               onImportConfiguration={handleImportConfiguration}
               onToggleSunController={() => setShowSunController(!showSunController)}
             />
@@ -883,7 +905,7 @@ export const SimpleBuildingCreator: React.FC = () => {
 
             {engineUnavailableNoticeKey !== null && !simulationProgress && <EngineUnavailableNotice key={engineUnavailableNoticeKey} onDismiss={() => setEngineUnavailableNoticeKey(null)} />}
 
-            {simulationProgress && <SimulationProgressCard daylight={simulationProgress.daylight} energy={simulationProgress.energy} onDismiss={() => setSimulationProgress(null)} onRetry={() => void handleSaveConfigurationConfirm(lastRunNameRef.current)} />}
+            {simulationProgress && <SimulationProgressCard daylight={simulationProgress.daylight} energy={simulationProgress.energy} onDismiss={handleDismissProgress} onRetry={() => void handleSaveConfigurationConfirm(lastRunNameRef.current)} />}
 
           </>
         )}
