@@ -75,7 +75,7 @@ In `heath-frontend.container` (in `ace-apps`, which is private, so the address m
 Environment=ENGINE_URL=https://<engine machine's address>
 Environment=ENGINE_TLS_NAME=heath-engine.internal
 Secret=heath-engine-key,type=env,target=ENGINE_API_KEY
-Secret=heath-engine-ca,type=mount,target=/run/secrets/engine-ca.crt
+Secret=heath-engine-ca,type=mount,target=/run/secrets/engine-ca.crt,mode=0444
 Environment=ENGINE_CA_FILE=/run/secrets/engine-ca.crt
 ```
 
@@ -86,7 +86,19 @@ read -rs KEY && printf %s "$KEY" | sudo podman secret create heath-engine-key - 
 sudo podman secret create heath-engine-ca <the engine machine's root certificate>
 ```
 
-The forward waits up to 25 minutes for an answer (a final-quality daylight study can take many minutes), so whatever is in front of `heath-frontend` must wait at least as long: the front page's forward for `/heath/` needs a longer timeout than Apache's default 60 seconds. Check from the VM that the app reaches the engine: `curl -s http://127.0.0.1:<heath-frontend's port>/proxy/engine/health` should answer `{"status":"ok"}`.
+(At start-up the image drops any spaces or newlines around the key, so a key secret made from a file with a final newline works too.) To change a secret later, remove it first (`sudo podman secret rm <name>`), create it again, and restart `heath-frontend`.
+
+**If the root certificate's file is missing or unreadable, nginx doesn't start, and the whole of Heath is down**, not only the engine: nginx reads the file at start-up. nginx in the container runs as an ordinary user, so mount the secret readable (`mode=0444`, as above).
+
+The forward waits up to 25 minutes for an answer (a final-quality daylight study can take many minutes), so whatever is in front of `heath-frontend` must wait at least as long: the front page's forward for `/heath/` needs a longer timeout than Apache's default 60 seconds.
+
+After changing `heath-frontend`'s unit file (`heath-frontend.container`, kept in `ace-apps`) or one of its secrets, restart `heath-frontend` and check, on the VM:
+
+1. `sudo systemctl status heath-frontend.service --no-pager` says "active (running)". If not, `sudo journalctl -u heath-frontend.service -n 20` shows why (e.g. "cannot load certificate").
+2. `curl -s http://127.0.0.1:<heath-frontend's port>/proxy/engine/health` answers `{"status":"ok"}`. That only shows that the engine is reachable and its certificate accepted: `/health` needs no key. Otherwise:
+   - **503** with "not deployed here": `ENGINE_URL` isn't set.
+   - **502**: the engine can't be reached, or its certificate isn't accepted (the root certificate, or `ENGINE_TLS_NAME`). The container's log (`sudo podman logs heath-frontend`) names the reason.
+3. A study runs in the app. A **401** "Missing or unknown API key" from the engine means the key in the secret doesn't match the engine's `APP_KEYS`.
 
 ## Updates
 
