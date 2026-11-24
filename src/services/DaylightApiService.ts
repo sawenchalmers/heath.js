@@ -1,6 +1,6 @@
 import { BuildingModel, Point3D } from '../types/building';
 import { ensureHoneybeeCounterClockwise, getBuildingFacadeParameters } from './FacadeGeometry';
-import { buildSimulationFootprint, reverseEdgeValues, sharedFloorsByEdge, simplifyFootprint } from './SimulationFootprint';
+import { buildSimulationFootprint, sharedFloorsByEdge, simplifyFootprint } from './SimulationFootprint';
 import { calculateSignedArea } from '../utils/geometry';
 import { probeEngine, type EngineStatus } from './EngineStatus';
 import { proxyUrl } from './proxyUrl';
@@ -178,29 +178,7 @@ class DaylightApiService {
     const request = this.buildRequestFromBuilding(building, options);
     const startedAt = new Date().toISOString();
     runOptions.onStatus?.({ status: 'running' });
-    let result: EngineDaylightResult;
-
-    try {
-      result = await this.postDaylight(request, runOptions.signal);
-    } catch (error) {
-      if (!this.shouldRetryWithReversedFootprint(error)) {
-        throw error;
-      }
-
-      // Reversing the points also reverses the wall order, so the shared floors per wall are reordered to match.
-      // This retry may no longer be needed, see #21.
-      const retryRequest: DaylightStudyRequest = {
-        ...request,
-        room: {
-          ...request.room,
-          footprint_coordinates: [...request.room.footprint_coordinates].reverse(),
-          ...(request.room.shared_floors_by_edge ? { shared_floors_by_edge: reverseEdgeValues(request.room.shared_floors_by_edge) } : {})
-        }
-      };
-
-      console.warn('[DaylightApiService] Retrying study with reversed footprint winding after ground-boundary aperture error.');
-      result = await this.postDaylight(retryRequest, runOptions.signal);
-    }
+    const result = await this.postDaylight(request, runOptions.signal);
 
     return { ...summariseDaylightResult(result, request), startedAt, completedAt: new Date().toISOString() };
   }
@@ -288,15 +266,6 @@ class DaylightApiService {
     }
 
     return response.json() as Promise<T>;
-  }
-
-  private shouldRetryWithReversedFootprint(error: unknown): boolean {
-    if (!(error instanceof Error)) {
-      return false;
-    }
-
-    const message = error.message.toLowerCase();
-    return message.includes('ground boundary condition') && message.includes('aperture');
   }
 }
 

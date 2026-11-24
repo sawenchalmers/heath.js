@@ -49,10 +49,3 @@ export const sharedFloorsByEdge = (footprint: BuildingAdjacency): number[][] | u
   footprint.edges.some(edge => edge.sharedFloors.length > 0)
     ? footprint.edges.map(edge => [...edge.sharedFloors])
     : undefined;
-
-/**
- * Reorder per-edge values for a footprint whose points have been reversed. Reversing the points
- * turns edge i into edge (n - 2 - i) mod n, running the other way.
- */
-export const reverseEdgeValues = <T>(values: readonly T[]): T[] =>
-  values.map((_, k) => values[(2 * values.length - 2 - k) % values.length]);

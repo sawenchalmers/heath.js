@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildSimulationFootprint,
   buildSimulationFootprints,
-  reverseEdgeValues,
   sharedFloorsByEdge,
   simplifyFootprint,
 } from '../SimulationFootprint';
@@ -64,17 +63,5 @@ describe('sharedFloorsByEdge', () => {
   it('is undefined when no wall is shared, so the request stays unchanged', () => {
     const corner = { id: 'corner', points: box(10, 10, 20, 20), floors: 3, floorHeight: 3 };
     expect(sharedFloorsByEdge(buildSimulationFootprint(building, [building, corner]))).toBeUndefined();
-  });
-});
-
-describe('reverseEdgeValues', () => {
-  it('keeps each value on the same wall after the points are reversed', () => {
-    const points = ['p0', 'p1', 'p2', 'p3', 'p4'];
-    const wallName = (list: string[], i: number) => [list[i], list[(i + 1) % list.length]].sort().join('-');
-    const valuesByWall = points.map((_, i) => wallName(points, i));
-    const reversed = [...points].reverse();
-
-    const reorderedValues = reverseEdgeValues(valuesByWall);
-    reversed.forEach((_, i) => expect(reorderedValues[i]).toBe(wallName(reversed, i)));
   });
 });
