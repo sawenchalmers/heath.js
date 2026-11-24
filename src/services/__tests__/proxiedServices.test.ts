@@ -51,6 +51,16 @@ describe('nginx forwards the services the app uses', () => {
     expect(engine).toContain('proxy_read_timeout 25m;');
   });
 
+  it('refuses an ENGINE_URL with a path or trailing slash, which would replace every request\'s path', () => {
+    const engine = locationBlock(`/${PROXY_PREFIX}engine/`)!;
+    const check = /if \(\$engine_url !~ "(.+?)"\) \{\s*return 503 '\{"error":"misconfigured"/.exec(engine);
+    expect(check, 'no check of ENGINE_URL\'s form').not.toBeNull();
+    const valid = new RegExp(check![1]);
+    expect(['https://engine.example', 'https://10.0.0.1:8443', 'http://localhost:8001'].every(url => valid.test(url))).toBe(true);
+    expect(['https://engine.example/', 'https://engine.example/v1', 'engine.example', 'https://engine.example?x', 'https://user@engine.example', 'https://engine example']
+      .some(url => valid.test(url))).toBe(false);
+  });
+
   it('checks the engine\'s certificate against ENGINE_TLS_NAME if set, otherwise the host in ENGINE_URL', () => {
     expect(nginxConf).toMatch(/map "\$ENGINE_TLS_NAME" \$engine_tls_name \{\s*""\s+\$proxy_host;\s*default\s+"\$ENGINE_TLS_NAME";\s*\}/);
     expect(locationBlock(`/${PROXY_PREFIX}engine/`)).toContain('proxy_ssl_name $engine_tls_name;');
