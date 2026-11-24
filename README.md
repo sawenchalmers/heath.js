@@ -126,15 +126,13 @@ docker compose up --build
 
 The dev server forwards `/proxy/engine/` to `http://localhost:8001`, waiting up to 25 minutes for an answer; to use another engine, start the dev server with `VITE_ENGINE_PROXY_TARGET=<url>`. In development, daylight runs at preview quality (`VITE_DAYLIGHT_QUALITY=preview` in `.env.development`): final quality takes minutes per floor on a CPU.
 
-`npm run engine` still starts the old engine (heath-engine before the v1 API) on port 8000, from a heath-engine checkout with a `.venv`, for comparisons with it (#30).
-
 ### Check the energy results against an engine
 
 With an engine running, this sends five fixed scenes (a building alone and with different neighbours) through the app's own request code and prints heating, cooling and total energy per scene:
 
 ```bash
 npm run check:energy                                        # v1 engine at http://127.0.0.1:8001
-npm run check:energy -- --url http://127.0.0.1:8000 --save old   # the old engine
+npm run check:energy -- --url <engine url> --save <name>  # another engine, results saved
 ```
 
 `--save <name>` also writes the results to `docs/audits/energy-check/<name>.json`, so runs on different engines can be compared. It isn't part of `npm test`, since it needs a running engine.

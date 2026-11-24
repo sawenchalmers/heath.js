@@ -1,9 +1,9 @@
 // Energy check (#30): sends five fixed scenes to a running engine through the app's own request code
-// (EnergyApiService), and prints heating, cooling and total energy per scene. Run it against the old
-// engine and again after the move to v1 (#25), and compare the saved results.
+// (EnergyApiService), and prints heating, cooling and total energy per scene. It was run against the old
+// engine (docs/audits/energy-check/old-api.json) and after the move to v1 (#25, v1.json); compare saved results.
 //
 //   npm run check:energy                                  # v1 engine at http://127.0.0.1:8001
-//   npm run check:energy -- --url http://127.0.0.1:8000 --save old   # the old engine (npm run engine)
+//   npm run check:energy -- --url <engine url> --save <name>
 //
 // Not part of the normal test run: it needs a running engine.
 import { mkdirSync, writeFileSync } from 'node:fs';

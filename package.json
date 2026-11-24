@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "engine": "node scripts/engine.mjs",
     "check:energy": "vite-node scripts/energy-check.ts --",
     "build": "vite build",
     "lint": "eslint .",
