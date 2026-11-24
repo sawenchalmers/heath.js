@@ -37,6 +37,7 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 # engine; the server sets them when it starts the container (deploy/README.md).
 # The key is never set here: the image is public.
 ENV ENGINE_URL="" \
+    ENGINE_TLS_NAME="" \
     ENGINE_API_KEY="" \
     ENGINE_CA_FILE=/etc/ssl/certs/ca-certificates.crt
 

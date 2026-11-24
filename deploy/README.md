@@ -60,18 +60,20 @@ Done once (it starts out with an nginx placeholder). As an administrator on the 
 
 ## Connecting the engine
 
-The image forwards `/heath/proxy/engine/…` to the simulation engine ([heath-engine](https://github.com/sawenchalmers/heath-engine), #59) when three environment variables are set. Without `ENGINE_URL` it answers 503 ("The simulation server is not deployed here."), so the image also runs anywhere without them.
+The image forwards `/heath/proxy/engine/…` to the simulation engine ([heath-engine](https://github.com/sawenchalmers/heath-engine), #59) when these environment variables are set. Without `ENGINE_URL` it answers 503 ("The simulation server is not deployed here."), so the image also runs anywhere without them.
 
 | Variable | What | How it's given to `heath-frontend` |
 |---|---|---|
 | `ENGINE_URL` | The engine's address, e.g. `https://<engine machine>` (no trailing slash). An IP address, or a host name that DNS resolves: nginx doesn't read `/etc/hosts` | `Environment=` in the unit |
+| `ENGINE_TLS_NAME` | Optional: the name the engine's certificate is issued for, when `ENGINE_URL` is an IP address. nginx connects to the address but checks the certificate against this name, and sends it as SNI. Needed because nginx doesn't accept a certificate that names an IP address only as a subject alternative name, which is how certificate authorities such as Caddy's `tls internal` issue certificates for an IP. The name needn't exist in DNS (e.g. `heath-engine.internal`), but the engine's web server must offer a certificate for it | `Environment=` in the unit |
 | `ENGINE_API_KEY` | Heath's key, one of the engine's `APP_KEYS` | A Podman secret, `type=env` |
 | `ENGINE_CA_FILE` | The root certificate to check the engine's HTTPS certificate with (default: the system's trusted roots) | A Podman secret, `type=mount`, and the path it's mounted at |
 
 In `heath-frontend.container` (in `ace-apps`, which is private, so the address may go there), for example:
 
 ```ini
-Environment=ENGINE_URL=https://<engine machine>
+Environment=ENGINE_URL=https://<engine machine's address>
+Environment=ENGINE_TLS_NAME=heath-engine.internal
 Secret=heath-engine-key,type=env,target=ENGINE_API_KEY
 Secret=heath-engine-ca,type=mount,target=/run/secrets/engine-ca.crt
 Environment=ENGINE_CA_FILE=/run/secrets/engine-ca.crt

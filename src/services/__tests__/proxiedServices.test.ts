@@ -51,6 +51,11 @@ describe('nginx forwards the services the app uses', () => {
     expect(engine).toContain('proxy_read_timeout 25m;');
   });
 
+  it('checks the engine\'s certificate against ENGINE_TLS_NAME if set, otherwise the host in ENGINE_URL', () => {
+    expect(nginxConf).toMatch(/map "\$ENGINE_TLS_NAME" \$engine_tls_name \{\s*""\s+\$proxy_host;\s*default\s+"\$ENGINE_TLS_NAME";\s*\}/);
+    expect(locationBlock(`/${PROXY_PREFIX}engine/`)).toContain('proxy_ssl_name $engine_tls_name;');
+  });
+
   it.each(services)('keeps the login session and the user\'s CID from %s', service => {
     const block = locationBlock(`/${PROXY_PREFIX}${service}/`)!;
     expect(block).toContain('proxy_set_header Cookie "";');
@@ -60,6 +65,7 @@ describe('nginx forwards the services the app uses', () => {
   it('has defaults for the engine settings, so nginx starts without them, and no address or key in the image', () => {
     // nginx's image only fills in variables that exist; an unset one would stay as `$ENGINE_URL` and stop nginx.
     expect(dockerfile).toMatch(/ENGINE_URL=""/);
+    expect(dockerfile).toMatch(/ENGINE_TLS_NAME=""/);
     expect(dockerfile).toMatch(/ENGINE_API_KEY=""/);
     expect(dockerfile).toMatch(/ENGINE_CA_FILE=\/etc\/ssl\/certs\/ca-certificates\.crt/);
     // No IP address or Bearer key written into either file.
