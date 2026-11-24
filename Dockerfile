@@ -32,6 +32,14 @@ FROM nginxinc/nginx-unprivileged:1.30-alpine
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 
+# The simulation engine's settings, filled into the template at start-up like the
+# resolvers. Empty by default, so the image starts anywhere and answers 503 for the
+# engine; the server sets them when it starts the container (deploy/README.md).
+# The key is never set here: the image is public.
+ENV ENGINE_URL="" \
+    ENGINE_API_KEY="" \
+    ENGINE_CA_FILE=/etc/ssl/certs/ca-certificates.crt
+
 # The built app, from stage 1, into the folder nginx serves.
 COPY --from=build /app/dist /usr/share/nginx/html
 
