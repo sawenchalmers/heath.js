@@ -14,7 +14,15 @@ describe('SimulationProgressCard', () => {
     const retry = vi.fn(); const dismiss = vi.fn();
     render(<SimulationProgressCard daylight={{ status: 'complete' }} energy={{ status: 'failed', message: 'Choose another construction.' }} onRetry={retry} onDismiss={dismiss} />);
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
-    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(retry).toHaveBeenCalledOnce(); expect(dismiss).toHaveBeenCalledOnce();
+  });
+
+  it('offers a Cancel button, and no close button, while either study is still on its way', () => {
+    const dismiss = vi.fn();
+    render(<SimulationProgressCard daylight={{ status: 'complete' }} energy={{ status: 'running' }} onDismiss={dismiss} />);
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(dismiss).toHaveBeenCalledOnce();
   });
 });

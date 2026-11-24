@@ -7,6 +7,7 @@ import { DegreeDaysChart } from './weather/DegreeDaysChart';
 import { swedishCities, SwedishCity } from '../data/swedishCities';
 import { PROXIED_SERVICES } from '../services/proxiedServices';
 import { proxyUrl } from '../services/proxyUrl';
+import { hasSeenWeatherTour, rememberWeatherTourSeen } from '../utils/weatherTourMemory';
 
 // Tour step definitions
 interface TourStep {
@@ -144,7 +145,7 @@ export const WeatherAndLocationTab: React.FC = () => {
   // Tour state
   const [currentTourStep, setCurrentTourStep] = useState(0);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [tourStarted, setTourStarted] = useState(false);
+  const [tourStarted, setTourStarted] = useState(hasSeenWeatherTour);
   const [showGlossary, setShowGlossary] = useState(false);
   const [showStepTerms, setShowStepTerms] = useState(false);
 
@@ -153,6 +154,7 @@ export const WeatherAndLocationTab: React.FC = () => {
     setCurrentTourStep(0);
     setShowSidebar(true);
     setTourStarted(true);
+    rememberWeatherTourSeen();
   };
 
   const nextTourStep = () => {
@@ -197,6 +199,7 @@ export const WeatherAndLocationTab: React.FC = () => {
   const skipTour = () => {
     setTourStarted(true);
     setShowSidebar(false);
+    rememberWeatherTourSeen();
   };
 
   const toggleSidebar = () => {
