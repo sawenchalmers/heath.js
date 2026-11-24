@@ -6,7 +6,7 @@ How the deployed heath.js is set up and maintained. Server details (host names, 
 
 ```
 browser ─▶ front page ─┬─ /heath/…      ─▶ heath-frontend ─▶ heath.js image: serves the app, and forwards
-                       │                                     /heath/proxy/… to EPSM, the climate site (later the engine)
+                       │                                     /heath/proxy/… to EPSM, the climate site and the engine
                        └─ /heath/api/…  ─▶ heath-backend  ─▶ reserved for Heath's own server side (placeholder for now)
 
 GitHub ─ every merge to main ─▶ ghcr.io/sawenchalmers/heath.js:<version> and :latest
@@ -15,7 +15,7 @@ VM     ─ podman auto-update  ─▶ pulls a new :latest and restarts heath-fro
 
 - **The front page** handles HTTPS, login and access, and forwards requests to the two services below. It is maintained separately and not described here. Who may use Heath is managed on the front page.
 - **Two Podman Quadlet services** are set up for Heath: `heath-frontend` and `heath-backend`. Their unit files (`.container`) are in `/etc/containers/systemd/`, but they are managed by the front page's set-up (`SB-Chalmers/ace-apps`), which overwrites the VM's copies: make lasting changes there. An edit on the VM only lasts until the next set-up run. They are hardened: each runs in its own user namespace with all capabilities dropped and no new privileges, and only listens on the VM itself.
-- **`heath-frontend` runs the heath.js image.** It serves the app and forwards everything under `/proxy/` to outside services: EPSM and the climate site now, the engine later (#59), with the engine's API key as a Podman secret (#45).
+- **`heath-frontend` runs the heath.js image.** It serves the app and forwards everything under `/proxy/` to outside services: EPSM, the climate site and the simulation engine (heath-engine, on its own machine; see [Connecting the engine](#connecting-the-engine)).
 - **`heath-backend` is reserved for Heath's own server-side parts,** such as the database for saving projects (#56). Until those exist it runs a placeholder; nothing in the app calls `/heath/api/…`.
 - **GitHub never connects to the VM.** The VM pulls the public image itself.
 
@@ -23,7 +23,7 @@ VM     ─ podman auto-update  ─▶ pulls a new :latest and restarts heath-fro
 
 - Run as a non-root user and listen on **port 8080** (it uses `nginx-unprivileged`).
 - Serve the app under `/heath/`, whether or not the front server strips the `/heath` prefix.
-- Hold **no secrets**: the image is public. The engine's API key will be given to `heath-frontend` on the VM as a Podman secret (#45), never built into the image.
+- Hold **no secrets**: the image is public. The engine's address and API key are given to `heath-frontend` on the VM when it starts (a Podman secret for the key, #45), never built into the image.
 - Be able to write `/etc/nginx/conf.d` when it starts: the site configuration is filled in from a template and written there at start-up. If the units are ever made read-only (`ReadOnly=true`), give that folder a writable mount (e.g. `Tmpfs=/etc/nginx/conf.d`). Otherwise nginx quietly serves its default welcome page instead of Heath, while the container looks healthy.
 
 ## Pointing heath-frontend at heath.js
@@ -57,6 +57,48 @@ Done once (it starts out with an nginx placeholder). As an administrator on the 
    ```
 2. `sudo systemctl daemon-reload && sudo systemctl restart heath-backend.service`
 3. Check: `sudo podman ps --format "{{.Names}}  {{.Image}}"` shows the placeholder for `heath-backend`, and Heath's weather and construction choices still work through the front page.
+
+## Connecting the engine
+
+The image forwards `/heath/proxy/engine/…` to the simulation engine ([heath-engine](https://github.com/sawenchalmers/heath-engine), #59) when these environment variables are set. Without `ENGINE_URL` it answers 503 ("The simulation server is not deployed here."), so the image also runs anywhere without them.
+
+| Variable | What | How it's given to `heath-frontend` |
+|---|---|---|
+| `ENGINE_URL` | The engine's address, e.g. `https://<engine machine>` (no trailing slash). An IP address, or a host name that DNS resolves: nginx doesn't read `/etc/hosts` | `Environment=` in the unit |
+| `ENGINE_TLS_NAME` | Optional: the name the engine's certificate is issued for, when `ENGINE_URL` is an IP address. nginx connects to the address but checks the certificate against this name, and sends it as SNI. Needed because nginx doesn't accept a certificate that names an IP address only as a subject alternative name, which is how certificate authorities such as Caddy's `tls internal` issue certificates for an IP. The name needn't exist in DNS (e.g. `heath-engine.internal`), but the engine's web server must offer a certificate for it | `Environment=` in the unit |
+| `ENGINE_API_KEY` | Heath's key, one of the engine's `APP_KEYS` | A Podman secret, `type=env` |
+| `ENGINE_CA_FILE` | The root certificate to check the engine's HTTPS certificate with (default: the system's trusted roots) | A Podman secret, `type=mount`, and the path it's mounted at |
+
+In `heath-frontend.container` (in `ace-apps`, which is private, so the address may go there), for example:
+
+```ini
+Environment=ENGINE_URL=https://<engine machine's address>
+Environment=ENGINE_TLS_NAME=heath-engine.internal
+Secret=heath-engine-key,type=env,target=ENGINE_API_KEY
+Secret=heath-engine-ca,type=mount,target=/run/secrets/engine-ca.crt,mode=0444
+Environment=ENGINE_CA_FILE=/run/secrets/engine-ca.crt
+```
+
+The secrets are created once on the VM. The key is pasted at a hidden prompt, so it never lands in a file or the shell's history; the root certificate is copied over as a file:
+
+```bash
+read -rs KEY && printf %s "$KEY" | sudo podman secret create heath-engine-key - ; unset KEY
+sudo podman secret create heath-engine-ca <the engine machine's root certificate>
+```
+
+(At start-up the image drops any spaces or newlines around the key, so a key secret made from a file with a final newline works too.) To change a secret later, remove it first (`sudo podman secret rm <name>`), create it again, and restart `heath-frontend`.
+
+**If the root certificate's file is missing or unreadable, nginx doesn't start, and the whole of Heath is down**, not only the engine: nginx reads the file at start-up. nginx in the container runs as an ordinary user, so mount the secret readable (`mode=0444`, as above).
+
+The forward waits up to 25 minutes for an answer (a final-quality daylight study can take many minutes), so whatever is in front of `heath-frontend` must wait at least as long: the front page's forward for `/heath/` needs a longer timeout than Apache's default 60 seconds.
+
+After changing `heath-frontend`'s unit file (`heath-frontend.container`, kept in `ace-apps`) or one of its secrets, restart `heath-frontend` and check, on the VM:
+
+1. `sudo systemctl status heath-frontend.service --no-pager` says "active (running)". If not, `sudo journalctl -u heath-frontend.service -n 20` shows why (e.g. "cannot load certificate").
+2. `curl -s http://127.0.0.1:<heath-frontend's port>/proxy/engine/health` answers `{"status":"ok"}`. That only shows that the engine is reachable and its certificate accepted: `/health` needs no key. Otherwise:
+   - **503** with "not deployed here": `ENGINE_URL` isn't set.
+   - **502**: the engine can't be reached, or its certificate isn't accepted (the root certificate, or `ENGINE_TLS_NAME`). The container's log (`sudo podman logs heath-frontend`) names the reason.
+3. A study runs in the app. A **401** "Missing or unknown API key" from the engine means the key in the secret doesn't match the engine's `APP_KEYS`.
 
 ## Updates
 

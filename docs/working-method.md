@@ -4,7 +4,7 @@ How heath.js is developed: one developer working with an AI coding assistant (Cl
 
 Most of it is project-neutral. Parts specific to heath.js are marked as such.
 
-**Version 5** (23 November 2026). History at the end.
+**Version 6** (24 November 2026). History at the end.
 
 ## Working together
 
@@ -32,6 +32,7 @@ Each kind of information has one home; the others link to it.
 
 - Every new issue goes into the work plan right away, under its workstream, and gets the milestone if it's a must-have.
 - When a workstream of "do if time" work starts, the ideas issue is reviewed too, and prioritised with it.
+- **Zoom out before the next issue.** Before starting a new issue or workstream, check the priorities against the release plan: where we are against its dates, what is on the critical path, and what the next deadline actually needs. Propose any re-ordering, then update the plan; don't just take the next item in line.
 - No separate tool (e.g. a Trello board) alongside GitHub: one place for planning.
 
 ## Issues
@@ -50,7 +51,7 @@ Each kind of information has one home; the others link to it.
 
 ## Reviews
 
-- **Independent review before a pull request:** a separate agent, without the conversation, reviews the whole branch diff. Every finding is verified; confirmed ones are fixed one at a time, each reviewed before commit (fixes that change no behaviour can share one round). The rest become comments on issues.
+- **Independent review before a pull request:** a separate agent, without the conversation, reviews the whole branch diff. Every finding is verified, then the confirmed ones are put to the developer one at a time, each with options and a recommendation; the answer is a fix in this pull request, an issue or comment, or nothing. The fixes can then be reviewed together in one round, with `// REVIEW:` comments, listing the ones that change behaviour with test steps; each fix still gets its own commit.
 - **A proportion review** when the developer doubts a change's size: is it over-engineered for what it does?
 - **Plans get an independent review too:** consistency between the planning layers, dependencies and order, feasibility, gaps. Bookkeeping fixes are made directly; decisions go to the developer one by one.
 - **UX reviews can be run by the assistant:** drive the app in a real browser (Playwright, on the real GPU) as a first-time user, compare with earlier reviews, and file the result in `docs/audits/<date>-<topic>/` with an outcome table and only the screenshots it cites, scaled down.
@@ -111,6 +112,7 @@ After each pull request, and after a planning session that changes the method, c
 
 ## History
 
+- **Version 6** (24 November 2026, after PR #111): the review's findings are decided one at a time, and the fixes reviewed together in one round. Zoom out before the next issue.
 - **Version 5** (23 November 2026, during #25): temporary `// REVIEW:` comments on each change of a larger diff, removed before committing.
 - **Version 4** (19 November 2026): planning layers (release issue, work plan by workstream, ideas issue, milestone, snapshot page); triage one by one, then a cross-check; independent reviews of plans; self-run UX reviews; issue notes for drafts; no unrequested asks; checking what's staged; care with "Closes #n". Moved into the repository so other projects can use it as a starting point.
 - **Version 3** (19 November 2026, after PR #72): the version bump also updates `CITATION.cff`; new AI models go into the README.
