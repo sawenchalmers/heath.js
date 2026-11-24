@@ -73,9 +73,8 @@ export const createEnergyInputFingerprint = (building: BuildingModel, buildings:
   floorConstruction: building.floor_construction ?? null,
   roofConstruction: building.roof_construction ?? null,
   windowConstruction: building.window_construction ?? null,
-  structuralSystem: building.structural_system ?? null,
+  // The HVAC and structural system settings aren't sent to the engine, so they don't make an energy result out of date.
   buildingProgram: building.building_program ?? null,
-  hvacSystem: building.hvac_system ?? null,
   naturalVentilation: building.natural_ventilation ?? false
 });
 
