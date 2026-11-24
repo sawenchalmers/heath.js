@@ -133,6 +133,13 @@ describe('DaylightApiService requests', () => {
     expect(String(fetchMock.mock.calls[0][0])).toBe('/proxy/engine/v1/daylight');
     fetchMock.mockRestore();
   });
+
+  it('says it was cancelled when the request is aborted', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      controller.abort();
+      return Promise.reject(new DOMException('aborted', 'AbortError'));
+    });
     await expect(daylightApiService.runStudyForBuilding(makeBuilding(), {}, { signal: controller.signal })).rejects.toThrow('Daylight run cancelled');
     fetchMock.mockRestore();
   });
