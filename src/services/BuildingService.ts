@@ -8,7 +8,6 @@ export class BuildingService {
   
   // Reusable geometries and materials for better performance
   private static debugMaterial: THREE.MeshStandardMaterial | null = null;
-  private static previewMaterial: THREE.MeshStandardMaterial | null = null;
   
   // Add building state tracking
   private buildingState = {
@@ -26,16 +25,6 @@ export class BuildingService {
         color: getThemeColorAsHex('--color-building-debug', 0x00ff00),
         emissive: getThemeColorAsHex('--color-building-debug', 0x00ff00),
         emissiveIntensity: 0.1,
-        roughness: 0.78,
-        metalness: 0
-      });
-        // Add shared preview material
-      BuildingService.previewMaterial = new THREE.MeshStandardMaterial({
-        color: getThemeColorAsHex('--color-building-preview', 0x3b82f6),
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.5,
-        wireframe: false,
         roughness: 0.78,
         metalness: 0
       });

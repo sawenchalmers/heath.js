@@ -58,7 +58,7 @@ describe('simulation input fingerprints', () => {
     const original = building('target');
     const historicalResult = {
       inputFingerprint: createDaylightInputFingerprint(original, [original]),
-      studyId: 'study-1', status: 'complete', sensorCount: 1, meanDF: 2, sda: 50,
+      status: 'complete', sensorCount: 1, meanDF: 2, sda: 50,
       points: [], sensorGrids: [], startedAt: '2026-01-01', completedAt: '2026-01-01'
     } satisfies DaylightRunSummary;
     const historicalNodeResults = { [original.id]: historicalResult };

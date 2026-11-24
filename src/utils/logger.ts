@@ -22,7 +22,7 @@ interface LogEntry {
   timestamp: Date;
   level: LogLevel;
   message: string;
-  data?: any;
+  data?: unknown;
   source?: string;
 }
 
@@ -68,7 +68,7 @@ class Logger {
   /**
    * Sanitize data to prevent logging sensitive information
    */
-  private sanitizeData(data: any): any {
+  private sanitizeData(data: unknown): unknown {
     if (!data) return data;
     
     // Don't sanitize in development
@@ -76,7 +76,7 @@ class Logger {
     
     // In production, sanitize sensitive data
     if (typeof data === 'object') {
-      const sanitized = { ...data };
+      const sanitized: Record<string, unknown> = { ...(data as Record<string, unknown>) };
       
       // Remove common sensitive fields
       const sensitiveFields = [
@@ -113,7 +113,7 @@ class Logger {
   /**
    * Core logging method
    */
-  private log(level: LogLevel, message: string, data?: any, source?: string): void {
+  private log(level: LogLevel, message: string, data?: unknown, source?: string): void {
     if (!this.shouldLog(level)) {
       return;
     }
@@ -164,28 +164,28 @@ class Logger {
   /**
    * Debug level logging - only in development
    */
-  debug(message: string, data?: any, source?: string): void {
+  debug(message: string, data?: unknown, source?: string): void {
     this.log('debug', message, data, source);
   }
 
   /**
    * Info level logging
    */
-  info(message: string, data?: any, source?: string): void {
+  info(message: string, data?: unknown, source?: string): void {
     this.log('info', message, data, source);
   }
 
   /**
    * Warning level logging
    */
-  warn(message: string, data?: any, source?: string): void {
+  warn(message: string, data?: unknown, source?: string): void {
     this.log('warn', message, data, source);
   }
 
   /**
    * Error level logging
    */
-  error(message: string, data?: any, source?: string): void {
+  error(message: string, data?: unknown, source?: string): void {
     this.log('error', message, data, source);
   }
 
@@ -215,7 +215,7 @@ class Logger {
   /**
    * Convenience method for user action logging
    */
-  userAction(action: string, data?: any, source?: string): void {
+  userAction(action: string, data?: unknown, source?: string): void {
     this.info(`User: ${action}`, data, source);
   }
 

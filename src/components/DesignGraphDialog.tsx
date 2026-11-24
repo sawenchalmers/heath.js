@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { X, RotateCcw, Zap, Loader2 } from 'lucide-react';
 import { DesignExplorationGraph, DesignNode } from '../types/designExploration';
+
+/** A design option as d3's force layout sees it: the node plus the position the layout gives it. */
+type GraphNode = DesignNode & d3.SimulationNodeDatum;
+/** An edge between two options; the layout replaces the ids in source and target with the nodes. */
+type GraphLink = d3.SimulationLinkDatum<GraphNode>;
 import { designExplorationService } from '../services/DesignExplorationService';
 
 interface DesignGraphDialogProps {
@@ -59,26 +64,26 @@ export const DesignGraphDialog: React.FC<DesignGraphDialogProps> = ({
       v != null ? v.toFixed(digits) : '—';
 
     // Transform edges to D3 link format
-    const linkData = graph.edges.map(edge => ({
+    const linkData: GraphLink[] = graph.edges.map(edge => ({
       source: edge.from,
       target: edge.to
     }));
 
     // Create force simulation
-    const simulation = d3.forceSimulation(graph.nodes as any)
-      .force("link", d3.forceLink(linkData).id((d: any) => d.id).distance(200))
+    const simulation = d3.forceSimulation<GraphNode>(graph.nodes as GraphNode[])
+      .force("link", d3.forceLink<GraphNode, GraphLink>(linkData).id(d => d.id).distance(200))
       .force("charge", d3.forceManyBody().strength(-500))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide(collisionR));
 
     // Add zoom behavior
-    const zoom = d3.zoom()
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.3, 3])
       .on("zoom", (event) => {
         container.attr("transform", event.transform);
       });
 
-    svg.call(zoom as any);
+    svg.call(zoom);
 
     // Create container for zoomable content
     const container = svg.append("g");
@@ -171,12 +176,12 @@ export const DesignGraphDialog: React.FC<DesignGraphDialogProps> = ({
     // Update positions on simulation tick
     simulation.on("tick", () => {
       linkElements
-        .attr("x1", (d: any) => d.source.x)
-        .attr("y1", (d: any) => d.source.y)
-        .attr("x2", (d: any) => d.target.x)
-        .attr("y2", (d: any) => d.target.y);
+        .attr("x1", d => (d.source as GraphNode).x ?? 0)
+        .attr("y1", d => (d.source as GraphNode).y ?? 0)
+        .attr("x2", d => (d.target as GraphNode).x ?? 0)
+        .attr("y2", d => (d.target as GraphNode).y ?? 0);
 
-      nodeElements.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+      nodeElements.attr("transform", d => `translate(${(d as GraphNode).x},${(d as GraphNode).y})`);
     });
 
     return () => {
@@ -293,13 +298,6 @@ export const DesignGraphDialog: React.FC<DesignGraphDialogProps> = ({
                     <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-2 items-start">
                       <span className="text-[11px] text-slate-500">Status:</span>
                       <span className="text-[11px] font-semibold text-slate-800 capitalize text-right break-words">{selectedNode.daylightRun.status}</span>
-
-                      {selectedNode.daylightRun.studyId && (
-                        <>
-                          <span className="text-[11px] text-slate-500">Study ID:</span>
-                          <span className="text-[11px] text-slate-700 text-right break-all">{selectedNode.daylightRun.studyId}</span>
-                        </>
-                      )}
 
                       {selectedNode.daylightRun.sensorCount !== undefined && (
                         <>

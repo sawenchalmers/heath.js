@@ -45,6 +45,13 @@ jobs:
 
       - run: npm ci
 
+      # (The job keeps its name: main's ruleset requires a check called "Test and check version".)
+      - name: Check the types
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
       - name: Run the tests
         run: npx vitest run
 

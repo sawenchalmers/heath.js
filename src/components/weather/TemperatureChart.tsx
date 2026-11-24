@@ -15,6 +15,21 @@ interface TemperatureChartProps {
   hourlyData?: HourlyDataPoint[];
 }
 
+// Constants, kept outside the component so its memoised calculations never see a new copy.
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Days in each month (non-leap year)
+const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+// Comfort ranges - Updated for Swedish building standards
+const comfortRanges = {
+  coldRisk: { min: -40, max: 18, color: '#1E40AF', label: '❄️ Cold Risk' },
+  slightlyCool: { min: 18, max: 20, color: '#3B82F6', label: '😬 Slightly Cool' },
+  comfortable: { min: 20, max: 26, color: '#10B981', label: '✅ Comfort Zone' },
+  warmDiscomfort: { min: 26, max: 28, color: '#F59E0B', label: '😓 Warm Discomfort' },
+  overheating: { min: 28, max: 50, color: '#EF4444', label: '🔥 Overheating' }
+};
+
 export const TemperatureChart: React.FC<TemperatureChartProps> = ({
   monthlyTemperatures,
   minTemp,
@@ -25,20 +40,8 @@ export const TemperatureChart: React.FC<TemperatureChartProps> = ({
   const [viewMode, setViewMode] = useState<'dryBulb' | 'comfort'>('dryBulb');
   const [timeResolution, setTimeResolution] = useState<'monthly' | 'hourly'>('monthly');
   
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  // Days in each month (non-leap year)
-  const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   const totalDays = 365;
-
-  // Comfort ranges - Updated for Swedish building standards
-  const comfortRanges = {
-    coldRisk: { min: -40, max: 18, color: '#1E40AF', label: '❄️ Cold Risk' },
-    slightlyCool: { min: 18, max: 20, color: '#3B82F6', label: '😬 Slightly Cool' },
-    comfortable: { min: 20, max: 26, color: '#10B981', label: '✅ Comfort Zone' },
-    warmDiscomfort: { min: 26, max: 28, color: '#F59E0B', label: '😓 Warm Discomfort' },
-    overheating: { min: 28, max: 50, color: '#EF4444', label: '🔥 Overheating' }
-  };
 
   // Create temperature matrix for heatmap - either [month][hour] or [day][hour]
   const temperatureMatrix = useMemo(() => {
@@ -143,7 +146,7 @@ export const TemperatureChart: React.FC<TemperatureChartProps> = ({
         );
       });
     }
-  }, [hourlyData, monthlyTemperatures, avgTemp, daysInMonth, totalDays, timeResolution, months]);
+  }, [hourlyData, monthlyTemperatures, avgTemp, totalDays, timeResolution]);
 
   // Memoized color calculation function for performance
   const getTemperatureColor = useMemo(() => {
@@ -190,7 +193,7 @@ export const TemperatureChart: React.FC<TemperatureChartProps> = ({
       colorCache.set(roundedTemp, color);
       return color;
     };
-  }, [minTemp, maxTemp, viewMode, comfortRanges]);
+  }, [minTemp, maxTemp, viewMode]);
 
   const getComfortZoneStats = () => {
     let totalHours = 0;

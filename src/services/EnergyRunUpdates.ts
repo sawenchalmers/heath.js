@@ -7,5 +7,5 @@ import type { EnergyRunMetadata } from '../types/designExploration';
  * rarely as "Energy study aborted".
  */
 export const energyRunAfterRerunError = (error: unknown, aborted: boolean): EnergyRunMetadata => aborted
-  ? { status: 'idle', stage: undefined, studyId: undefined, error: undefined }
+  ? { status: 'idle', stage: undefined, error: undefined }
   : { status: 'failed', stage: undefined, error: error instanceof Error ? error.message : 'Energy simulation failed.' };

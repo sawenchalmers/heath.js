@@ -728,7 +728,7 @@ export class EPWParser {
               const size = new Blob([item]).size;
               entries.push({ key, timestamp: entry.timestamp, size });
             }
-          } catch (error) {
+          } catch {
             // Remove corrupted entries
             entries.push({ key, timestamp: 0, size: 0 });
           }
@@ -774,7 +774,7 @@ export class EPWParser {
                 fileName: entry.epwFileName 
               });
             }
-          } catch (error) {
+          } catch {
             // Remove corrupted entries
             entries.push({ key, timestamp: 0, fileName: 'corrupted' });
           }

@@ -4,7 +4,7 @@ How heath.js is developed: one developer working with an AI coding assistant (Cl
 
 Most of it is project-neutral. Parts specific to heath.js are marked as such.
 
-**Version 7** (24 November 2026). History at the end.
+**Version 8** (24 November 2026). History at the end.
 
 ## Working together
 
@@ -46,6 +46,7 @@ Each kind of information has one home; the others link to it.
 
 ## Triage: findings, reviews, plans
 
+- **Notes from the developer's own testing** go to the issue they belong to (a finding or a comment). If none fits, the assistant asks whether to create one. They are never folded into the pull request in progress, and a note says nothing about its priority.
 - Findings are presented **one at a time**, briefly; the developer answers each with an action: an issue, part of an issue, an idea for the ideas issue, "investigate", or nothing.
 - Then the developer's answers are **cross-checked** against the assistant's own proposal, naming real disagreements (not just differences in scope).
 - The same works for planning: workstreams one by one, each answered with how critical it is and when.
@@ -116,6 +117,7 @@ After each pull request, and after a planning session that changes the method, c
 
 ## History
 
+- **Version 8** (24 November 2026, after PR #115): notes from the developer's own testing go to their issues, not into the pull request in progress, and say nothing about priority.
 - **Version 7** (24 November 2026, after PR #112 and connecting the engine, #59): a second independent review of the fixes when they touch security or deployment; server changes one step at a time, each explained, with a backup and a way back; secrets never through the chat. Plain-language explanations when something is unclear.
 - **Version 6** (24 November 2026, after PR #111): the review's findings are decided one at a time, and the fixes reviewed together in one round. Zoom out before the next issue.
 - **Version 5** (23 November 2026, during #25): temporary `// REVIEW:` comments on each change of a larger diff, removed before committing.

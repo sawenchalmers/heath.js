@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DesignExplorationGraph, DesignNode } from '../../../types/designExploration';
-import { projectDesignGraphOverview } from '../DesignGraphOverviewCard';
+import { projectDesignGraphOverview } from '../designGraphOverview';
 
 const node = (id: string, x?: number, y?: number): DesignNode => ({
   id,

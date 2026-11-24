@@ -13,6 +13,20 @@ interface HumidityChartProps {
   hourlyData?: HourlyDataPoint[];
 }
 
+// Constants, kept outside the component so its memoised calculations never see a new copy.
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Days in each month (non-leap year)
+const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+// Boverket-based humidity thresholds
+const humidityRanges = {
+  tooDry: { min: 0, max: 30, color: '#2563EB', label: 'Too Dry' },
+  comfortable: { min: 30, max: 60, color: '#059669', label: 'Comfort Range' },
+  warning: { min: 60, max: 75, color: '#D97706', label: 'Humid – Warning' },
+  highRisk: { min: 75, max: 100, color: '#DC2626', label: 'High Risk Zone' }
+};
+
 export const HumidityChart: React.FC<HumidityChartProps> = ({
   monthlyHumidity,
   avgHumidity,
@@ -21,19 +35,8 @@ export const HumidityChart: React.FC<HumidityChartProps> = ({
   const [viewMode, setViewMode] = useState<'chart' | 'heatmap'>('chart');
   const [timeResolution, setTimeResolution] = useState<'monthly' | 'hourly'>('monthly');
   
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  // Days in each month (non-leap year)
-  const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   const totalDays = 365;
-
-  // Boverket-based humidity thresholds
-  const humidityRanges = {
-    tooDry: { min: 0, max: 30, color: '#2563EB', label: 'Too Dry' },
-    comfortable: { min: 30, max: 60, color: '#059669', label: 'Comfort Range' },
-    warning: { min: 60, max: 75, color: '#D97706', label: 'Humid – Warning' },
-    highRisk: { min: 75, max: 100, color: '#DC2626', label: 'High Risk Zone' }
-  };
 
   // Create humidity matrix for heatmap - either [month][hour] or [day][hour]
   const humidityMatrix = useMemo(() => {
@@ -132,7 +135,7 @@ export const HumidityChart: React.FC<HumidityChartProps> = ({
         );
       });
     }
-  }, [hourlyData, monthlyHumidity, avgHumidity, daysInMonth, totalDays, timeResolution, months]);
+  }, [hourlyData, monthlyHumidity, avgHumidity, totalDays, timeResolution]);
 
   // Memoized color calculation function
   const getHumidityColor = useMemo(() => {
@@ -155,7 +158,7 @@ export const HumidityChart: React.FC<HumidityChartProps> = ({
       colorCache.set(roundedHumidity, color);
       return color;
     };
-  }, [humidityRanges]);
+  }, []);
 
   const getHumidityStats = () => {
     let totalHours = 0;

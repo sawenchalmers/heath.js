@@ -18,16 +18,10 @@ interface DegreeDaysChartProps {
 export const DegreeDaysChart: React.FC<DegreeDaysChartProps> = ({
   hourlyTemperatures,
   comfortTemp,
-  heatingDegreeDays,
-  coolingDegreeDays,
   onComfortTempChange
 }) => {
   const [inputTemp, setInputTemp] = useState(comfortTemp.toString());
-  const [bufferEnabled, setBufferEnabled] = useState(false);
   const [showDegreeHours, setShowDegreeHours] = useState(false);
-  const [expandedMonth, setExpandedMonth] = useState<number | null>(null);
-  const [showInsights, setShowInsights] = useState(false);
-  const [tooltipVisible, setTooltipVisible] = useState(false);
   const [monthlyHoursCollapsed, setMonthlyHoursCollapsed] = useState(true);
 
   const handleTempChange = (value: string) => {

@@ -406,6 +406,7 @@ export const WeatherAndLocationTab: React.FC = () => {
   // Load default weather data on mount
   React.useEffect(() => {
     loadWeatherData(selectedLocation);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

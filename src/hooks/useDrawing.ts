@@ -82,7 +82,7 @@ export const useDrawing = (
           throw new Error('Service initialization failed - one or more services are null');
         }
       } catch (error) {
-        logger.error('Failed to initialize drawing services', { error: error.message }, 'DrawingHook');
+        logger.error('Failed to initialize drawing services', { error: error instanceof Error ? error.message : String(error) }, 'DrawingHook');
         // Clear refs if initialization failed
         drawingServiceRef.current = null;
         buildingServiceRef.current = null;

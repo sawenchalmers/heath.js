@@ -240,11 +240,6 @@ export class ThreeJSCore {
       console.warn('Error updating context model colors:', e);
     }
     
-    try {
-      this.windowService.updateThemeColors();
-    } catch (e) {
-      console.warn('Error updating window colors:', e);
-    }
     
     // Additional global scene adjustments
     const scene = this.sceneManager.getScene();
@@ -300,7 +295,7 @@ export class ThreeJSCore {
       }
     };
     
-    animate(performance.now());
+    animate();
   }
 
   private handleResize(): void {

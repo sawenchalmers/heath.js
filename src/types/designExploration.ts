@@ -21,7 +21,6 @@ export interface DesignMetrics {
 export type DaylightRunStatus = 'idle' | 'queued' | 'running' | 'complete' | 'failed';
 
 export interface DaylightRunMetadata {
-  studyId?: string;
   status: DaylightRunStatus;
   stage?: string;
   error?: string;
@@ -36,7 +35,6 @@ export interface EnergyRunMetadata {
   /** The building the energy study simulated; the others in the node only provide shared walls. */
   buildingId?: string;
   inputFingerprint?: string;
-  studyId?: string;
   status: EnergyRunStatus;
   stage?: string;
   error?: string;
