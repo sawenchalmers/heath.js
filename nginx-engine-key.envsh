@@ -1,0 +1,6 @@
+# Run by nginx's image when the container starts, before it fills in nginx.conf's template
+# (see the Dockerfile). Drops whitespace at the start and end of the engine's API key, such
+# as the final newline of the file a Podman secret was made from: in the Authorization header,
+# a newline would make every request to the engine fail with 400.
+ENGINE_API_KEY=$(printf '%s' "$ENGINE_API_KEY" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+export ENGINE_API_KEY

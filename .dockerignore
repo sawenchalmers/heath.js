@@ -16,6 +16,7 @@
 !tailwind.config.js
 !postcss.config.js
 !nginx.conf
+!nginx-engine-key.envsh
 !src/
 !public/
 !icons/

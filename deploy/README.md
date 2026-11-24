@@ -79,10 +79,10 @@ Secret=heath-engine-ca,type=mount,target=/run/secrets/engine-ca.crt
 Environment=ENGINE_CA_FILE=/run/secrets/engine-ca.crt
 ```
 
-The secrets are created once on the VM, from files that are then deleted:
+The secrets are created once on the VM. The key is pasted at a hidden prompt, so it never lands in a file or the shell's history; the root certificate is copied over as a file:
 
 ```bash
-sudo podman secret create heath-engine-key <file with the key>
+read -rs KEY && printf %s "$KEY" | sudo podman secret create heath-engine-key - ; unset KEY
 sudo podman secret create heath-engine-ca <the engine machine's root certificate>
 ```
 

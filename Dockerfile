@@ -32,6 +32,11 @@ FROM nginxinc/nginx-unprivileged:1.30-alpine
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 
+# A start-up step that runs before the template is filled in (nginx's image runs the
+# executable scripts in /docker-entrypoint.d/ in order; 20-envsubst fills in the template):
+# it drops whitespace around the engine's API key, e.g. a key file's final newline.
+COPY --chmod=755 nginx-engine-key.envsh /docker-entrypoint.d/16-engine-key.envsh
+
 # The simulation engine's settings, filled into the template at start-up like the
 # resolvers. Empty by default, so the image starts anywhere and answers 503 for the
 # engine; the server sets them when it starts the container (deploy/README.md).
