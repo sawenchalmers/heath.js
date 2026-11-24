@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Sun, Activity, Filter, Zap, Leaf, LayoutDashboard, Download } from 'lucide-react';
+import { X, Sun, Activity, Filter, Zap, Leaf, LayoutDashboard } from 'lucide-react';
 import { DaylightRunSummary, DaylightSensorPoint } from '../../types/daylight';
 import { EmbodiedCarbonResult } from '../../services/EPSMService';
 import { MonthlyHeatBalance } from '../../services/EnergyApiService';
 import { MonthlyHeatBalanceChart } from '../MonthlyHeatBalanceChart';
-import { daylightApiService } from '../../services/DaylightApiService';
 
 export interface EnergyResults {
   heatingDemand?: number;
@@ -51,21 +50,11 @@ export const DaylightResultsDialog: React.FC<DaylightResultsDialogProps> = ({
   const onApplyVisualizationRef = useRef(onApplyVisualization);
   useEffect(() => { onApplyVisualizationRef.current = onApplyVisualization; });
 
-  const handleDownloadModel = () => {
-    const link = document.createElement('a');
-    link.href = daylightApiService.getStudyModelDownloadUrl(result.studyId);
-    link.download = `daylight-${result.studyId}.hbjson`;
-    link.rel = 'noopener';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const hasSda = Boolean(result.sdaPoints && result.sdaPoints.length > 0);
 
   useEffect(() => {
     setSelectedSensorGridIndex(0);
-  }, [result.studyId]);
+  }, [result.completedAt]);
 
   const sensorGrids = useMemo(() => {
     if (result.sensorGrids?.length) {
@@ -264,14 +253,6 @@ export const DaylightResultsDialog: React.FC<DaylightResultsDialogProps> = ({
             <p className="text-xs text-slate-500 truncate">{buildingName}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadModel}
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-              title="Download Honeybee model"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Download model
-            </button>
             {availableResults.length > 0 && (
               <select
                 aria-label="Result building"

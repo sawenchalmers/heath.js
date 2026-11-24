@@ -1,9 +1,9 @@
 // Energy check (#30): sends five fixed scenes to a running engine through the app's own request code
-// (EnergyApiService), and prints heating, cooling and total energy per scene. Run it against the old
-// engine and again after the move to v1 (#25), and compare the saved results.
+// (EnergyApiService), and prints heating, cooling and total energy per scene. It was run against the old
+// engine (docs/audits/energy-check/old-api.json) and after the move to v1 (#25, v1.json); compare saved results.
 //
-//   npm run check:energy                                  # engine at http://127.0.0.1:8000
-//   npm run check:energy -- --url http://127.0.0.1:8001 --save v1
+//   npm run check:energy                                  # v1 engine at http://127.0.0.1:8001
+//   npm run check:energy -- --url <engine url> --save <name>
 //
 // Not part of the normal test run: it needs a running engine.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -56,7 +56,7 @@ const argument = (name: string, fallback?: string) => {
 const round = (value: number | undefined) => (value === undefined ? null : Math.round(value * 10) / 10);
 
 /** Sends every scene, one after the other, and returns one row per scene. */
-async function runScenes(url: string, location: string) {
+async function runScenes(url: string) {
   const service = new EnergyApiService(url);
   const rows = [];
   for (const scene of SCENES) {
@@ -65,7 +65,6 @@ async function runScenes(url: string, location: string) {
       const result: EnergyStudyResult = await service.runEnergyStudy(target, {
         constructions: CONSTRUCTIONS,
         building_program: PROGRAM,
-        location,
         neighbours: [target, ...scene.neighbours],
       });
       rows.push({
@@ -82,19 +81,19 @@ async function runScenes(url: string, location: string) {
   return rows;
 }
 
-const url = argument('url', 'http://127.0.0.1:8000')!;
-const location = argument('location', 'gothenburg')!;
+const url = argument('url', 'http://127.0.0.1:8001')!;
 const save = argument('save');
 
-console.log(`Energy check against ${url} (location ${location}, ${PROGRAM})`);
-const rows = await runScenes(url, location);
+// The v1 engine has no location parameter: it uses its default weather file (Gothenburg TMYx).
+console.log(`Energy check against ${url} (${PROGRAM})`);
+const rows = await runScenes(url);
 console.table(rows);
 
 if (save) {
   const folder = path.resolve('docs/audits/energy-check');
   mkdirSync(folder, { recursive: true });
   const file = path.join(folder, `${save}.json`);
-  writeFileSync(file, JSON.stringify({ engine: save, url, location, program: PROGRAM, constructions: CONSTRUCTIONS, date: new Date().toISOString(), scenes: rows }, null, 2) + '\n');
+  writeFileSync(file, JSON.stringify({ engine: save, url, program: PROGRAM, constructions: CONSTRUCTIONS, date: new Date().toISOString(), scenes: rows }, null, 2) + '\n');
   console.log(`Saved to ${path.relative(process.cwd(), file)}`);
 }
 if (rows.some(row => 'error' in row)) process.exitCode = 1;

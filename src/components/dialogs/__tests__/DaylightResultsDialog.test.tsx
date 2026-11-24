@@ -4,16 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DaylightResultsDialog } from '../DaylightResultsDialog';
 import type { DaylightRunSummary } from '../../../types/daylight';
 
-const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-
-vi.mock('../../../services/DaylightApiService', () => ({
-  daylightApiService: {
-    getStudyModelDownloadUrl: vi.fn().mockReturnValue('/proxy/daylight/v1/studies/study-1/model.hbjson')
-  }
-}));
-
 const makeResult = (overrides: Partial<DaylightRunSummary> = {}): DaylightRunSummary => ({
-  studyId: 'study-1',
   status: 'complete',
   sensorCount: 1,
   meanDF: 12,
@@ -57,22 +48,6 @@ describe('DaylightResultsDialog', () => {
     fireEvent.change(selector, { target: { value: 'building-b' } });
 
     expect(handleSelect).toHaveBeenCalledWith('building-b');
-  });
-
-  it('downloads the Honeybee model from the selected study', async () => {
-    render(
-      <DaylightResultsDialog
-        isOpen
-        onClose={() => undefined}
-        buildingName="Building A"
-        result={makeResult()}
-        onApplyVisualization={() => undefined}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /download model/i }));
-
-    expect(anchorClickSpy).toHaveBeenCalled();
   });
 
   it('shows only one sensor grid range at a time in the plan view', () => {

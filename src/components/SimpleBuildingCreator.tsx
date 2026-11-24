@@ -25,9 +25,8 @@ import { BuildingService } from '../services/BuildingService';
 import { addSampleBuilding } from '../utils/addSampleBuilding';
 import { designExplorationService } from '../services/DesignExplorationService';
 import { daylightApiService } from '../services/DaylightApiService';
-import { energyApiService } from '../services/EnergyApiService';
 import { daylightVisualizationService, getOverlayDatasetsForResults } from '../services/DaylightVisualizationService';
-import { getEPSMConstructionOptions, getCachedEPSMOptions, computePortfolioEmbodiedCarbon, calculateEmbodiedCarbon, resolveEnergyConstructions } from '../services/EPSMService';
+import { getEPSMConstructionOptions, getCachedEPSMOptions, computePortfolioEmbodiedCarbon, embodiedCarbonOfBuilding } from '../services/EPSMService';
 import { DaylightRunSummary } from '../types/daylight';
 import { createEnergyInputFingerprint, isEnergyRunCurrent, retainValidDaylightResults } from '../services/SimulationFingerprint';
 import { energyRunAfterRerunError } from '../services/EnergyRunUpdates';
@@ -273,7 +272,7 @@ export const SimpleBuildingCreator: React.FC = () => {
     targetBuilding: BuildingModel,
     configurationName: string,
     buildingsForSnapshot?: BuildingModel[],
-    options?: { recordInGraph?: boolean; useGhosting?: boolean; location?: string }
+    options?: { recordInGraph?: boolean; useGhosting?: boolean }
   ) => {
     const snapshotBuildings = buildingsForSnapshot && buildingsForSnapshot.length > 0
       ? buildingsForSnapshot
@@ -284,9 +283,6 @@ export const SimpleBuildingCreator: React.FC = () => {
     }
 
     const now = new Date().toISOString();
-    const configuredLocation = import.meta.env.VITE_DAYLIGHT_API_LOCATION as string | undefined;
-    const resolvedLocation = options?.location || configuredLocation || await daylightApiService.getDefaultLocation(runAbortControllerRef.current?.signal);
-    const runSda = Boolean(resolvedLocation);
     const shouldRecordInGraph = options?.recordInGraph !== false;
     const useGhosting = options?.useGhosting !== false;
 
@@ -352,7 +348,7 @@ export const SimpleBuildingCreator: React.FC = () => {
     runAbortControllerRef.current = new AbortController();
     setIsSaveAndRunInProgress(true);
     setSimulationProgress(previous => ({
-      daylight: { status: 'queued', message: 'Submitting daylight studies…' },
+      daylight: { status: 'queued', message: 'Sending daylight studies…' },
       energy: previous?.energy ?? { status: 'preparing', message: 'Validating constructions…' },
     }));
 
@@ -369,28 +365,21 @@ export const SimpleBuildingCreator: React.FC = () => {
       }
       const resultsById = await simulationCoordinator.runDaylightStudySet({
         buildings: snapshotBuildings,
-        location: resolvedLocation,
         signal: runAbortControllerRef.current.signal,
-        onStatus: (building, { status, studyId, stage, error }) => {
-                setSimulationProgress(previous => previous ? {
-                  ...previous,
-                  daylight: {
-                    status: status === 'failed' ? 'failed' : status === 'complete' ? 'complete' : status === 'queued' ? 'queued' : 'running',
-                    message: error || `${building.name || 'Building'}: ${stage || status}`,
-                  },
-                } : previous);
+        onStatus: (_building, { status, error }) => {
+          setSimulationProgress(previous => previous ? {
+            ...previous,
+            daylight: {
+              status: status === 'failed' ? 'failed' : status === 'complete' ? 'complete' : status === 'queued' ? 'queued' : 'running',
+              message: error || 'Running daylight… this can take a few minutes.',
+            },
+          } : previous);
 
-                if (pendingNodeId) {
-                  designExplorationService.updateNode(pendingNodeId, {
-                    daylightRun: {
-                      status,
-                      studyId,
-                      stage,
-                      error,
-                      updatedAt: new Date().toISOString()
-                    }
-                  });
-                }
+          if (pendingNodeId) {
+            designExplorationService.updateNode(pendingNodeId, {
+              daylightRun: { status, error, updatedAt: new Date().toISOString() }
+            });
+          }
         },
       });
       const stampedResults = snapshotBuildings.map(building => resultsById[building.id]);
@@ -401,18 +390,12 @@ export const SimpleBuildingCreator: React.FC = () => {
 
       if (pendingNodeId) {
         designExplorationService.updateNode(pendingNodeId, {
-          ...(runSda
-            ? {
-                metrics: {
-                  spatialDaylightAutonomy:
-                    stampedResults.reduce((total, current) => total + current.sda, 0) / stampedResults.length
-                }
-              }
-            : {}),
+          metrics: {
+            spatialDaylightAutonomy:
+              stampedResults.reduce((total, current) => total + current.sda, 0) / stampedResults.length
+          },
           daylightRun: {
             status: 'complete',
-            studyId: result.studyId,
-            stage: result.stage,
             sensorCount: stampedResults.reduce((total, current) => total + current.sensorCount, 0),
             meanDF: stampedResults.reduce((total, current) => total + current.meanDF, 0) / stampedResults.length,
             updatedAt: result.completedAt || new Date().toISOString()
@@ -471,33 +454,26 @@ export const SimpleBuildingCreator: React.FC = () => {
       energy: { status: 'preparing', message: 'Validating EPSM constructions…' },
     });
 
-    const [location, epsmOpts] = await Promise.all([
-      daylightApiService.getDefaultLocation().catch(() => undefined),
-      getEPSMConstructionOptions().catch(() => null),
-    ]);
+    const epsmOpts = await getEPSMConstructionOptions().catch(() => null);
 
     energyAbortControllerRef.current?.abort();
     const energyAbortController = new AbortController();
     energyAbortControllerRef.current = energyAbortController;
 
-    const daylightPromise = runDaylightSimulation(targetBuilding, name, runSnapshot, { location });
+    const daylightPromise = runDaylightSimulation(targetBuilding, name, runSnapshot);
     const energyPromise = (async () => {
-      if (!location) throw new Error('Energy requires a configured simulation location.');
-      setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'queued', message: 'Submitting energy study…' } } : previous);
-      const coordinated = await simulationCoordinator.runEnergyStudy({
+      setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'queued', message: 'Sending energy study…' } } : previous);
+      return simulationCoordinator.runEnergyStudy({
         building: targetBuilding,
         buildings: runSnapshot,
-        location,
         epsm: epsmOpts,
         signal: energyAbortController.signal,
         callbacks: {
-          onQueued: () => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'queued', message: 'Waiting for an energy worker…' } } : previous),
-          onStatusUpdate: status => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'running', message: status.stage ?? status.status } } : previous),
+          onStatusUpdate: () => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'running', message: 'Running energy… this can take a minute.' } } : previous),
           onComplete: () => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'complete', message: 'Energy results are ready.' } } : previous),
           onError: error => setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'failed', message: error.message } } : previous),
         },
       });
-      return coordinated.result;
     })().catch(error => {
       const message = error instanceof Error ? error.message : 'Energy simulation failed.';
       setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'failed', message } } : previous);
@@ -511,28 +487,12 @@ export const SimpleBuildingCreator: React.FC = () => {
     if (energyAbortController.signal.aborted) return;
     const node = designExplorationService.getCurrentNode();
     if (node && energySettled.status === 'fulfilled') {
-      const energyResult = energySettled.value;
-      const resolvedConstructions = resolveEnergyConstructions(epsmOpts, {
-        wall: targetBuilding.wall_construction, floor: targetBuilding.floor_construction,
-        roof: targetBuilding.roof_construction, window: targetBuilding.window_construction,
-      });
-      const resolved = {
-        ...targetBuilding,
-        wall_construction: resolvedConstructions.wall,
-        floor_construction: resolvedConstructions.floor,
-        roof_construction: resolvedConstructions.roof,
-        window_construction: resolvedConstructions.window,
-      };
-      const gwp = epsmOpts ? (computePortfolioEmbodiedCarbon(epsmOpts, [resolved]) ?? 0) : 0;
-      const wallArea = resolved.metrics.perimeter * resolved.metrics.totalHeight;
-      const windowArea = wallArea * (resolved.window_to_wall_ratio ?? DEFAULT_FACADE_PARAMETERS.wwr);
-      const breakdown = epsmOpts ? calculateEmbodiedCarbon(epsmOpts, resolvedConstructions, {
-        wallArea, windowArea, floorArea: resolved.metrics.grossFloorArea, roofArea: resolved.metrics.footprintArea,
-      }) : null;
+      const { result: energyResult, constructions } = energySettled.value;
+      const { gwp, breakdown } = epsmOpts ? embodiedCarbonOfBuilding(epsmOpts, targetBuilding, constructions) : { gwp: 0, breakdown: null };
       designExplorationService.updateNode(node.id, {
         energyRun: {
           status: 'complete', buildingId: targetBuilding.id, inputFingerprint: createEnergyInputFingerprint(targetBuilding, runSnapshot),
-          studyId: energyResult.study_id, monthlyHeatBalance: energyResult.monthly_heat_balance ?? undefined,
+          monthlyHeatBalance: energyResult.monthly_heat_balance ?? undefined,
         },
         metrics: {
           heatingDemand: energyResult.heating_demand_kwh_m2,
@@ -988,12 +948,7 @@ export const SimpleBuildingCreator: React.FC = () => {
           // Rerun the building the node's energy study simulated; older nodes without an id fall back to the first building.
           const building = node.buildings.find(b => b.id === node.energyRun?.buildingId) ?? node.buildings[0];
 
-          // Fetch location and EPSM options in parallel before submitting
-          const [location, epsmOpts] = await Promise.all([
-            daylightApiService.getDefaultLocation().catch(() => undefined),
-            getEPSMConstructionOptions().catch(() => null),
-          ]);
-          if (!location) return;
+          const epsmOpts = await getEPSMConstructionOptions().catch(() => null);
 
           energyAbortControllerRef.current?.abort();
           // Kept locally: the ref is replaced when another run starts, and the catch below needs this run's signal.
@@ -1001,72 +956,38 @@ export const SimpleBuildingCreator: React.FC = () => {
           energyAbortControllerRef.current = rerunAbortController;
 
           designExplorationService.updateNode(nodeId, {
-            energyRun: { status: 'queued', stage: 'Submitting…' }
+            energyRun: { status: 'queued', stage: 'Sending…' }
           });
 
           try {
-            const resolvedConstructions = resolveEnergyConstructions(epsmOpts, {
-              wall: building.wall_construction,
-              floor: building.floor_construction,
-              roof: building.roof_construction,
-              window: building.window_construction,
-            });
-            await energyApiService.runEnergyStudy(
+            // The same energy flow as Save and run: the coordinator resolves the EPSM constructions and runs the study.
+            const { result, constructions } = await simulationCoordinator.runEnergyStudy({
               building,
-              {
-                constructions: resolvedConstructions,
-                building_program: building.building_program ?? 'Office',
-                hvac_system:      building.hvac_system      ?? 'Default HVAC',
-                natural_ventilation: building.natural_ventilation ?? false,
-                location,
-                neighbours: node.buildings,
-              },
-              {
-                onQueued: (studyId) => designExplorationService.updateNode(nodeId, {
-                  energyRun: { status: 'queued', studyId, stage: 'Queued' }
-                }),
-                onStatusUpdate: (s) => designExplorationService.updateNode(nodeId, {
-                  energyRun: { status: s.status, stage: s.stage }
-                }),
-                onComplete: (result) => {
-                  const resolvedForGwp = {
-                    ...building,
-                    wall_construction: resolvedConstructions.wall,
-                    floor_construction: resolvedConstructions.floor,
-                    roof_construction: resolvedConstructions.roof,
-                    window_construction: resolvedConstructions.window,
-                  };
-                  const gwp = epsmOpts ? (computePortfolioEmbodiedCarbon(epsmOpts, [resolvedForGwp]) ?? 0) : 0;
-                  const wwr = resolvedForGwp.window_to_wall_ratio ?? DEFAULT_FACADE_PARAMETERS.wwr;
-                  const wallArea = resolvedForGwp.metrics.perimeter * resolvedForGwp.metrics.totalHeight;
-                  const breakdown = epsmOpts ? calculateEmbodiedCarbon(
-                    epsmOpts,
-                    { wall: resolvedForGwp.wall_construction ?? '', floor: resolvedForGwp.floor_construction ?? '', roof: resolvedForGwp.roof_construction ?? '', window: resolvedForGwp.window_construction ?? '' },
-                    { wallArea, windowArea: wallArea * wwr, floorArea: resolvedForGwp.metrics.grossFloorArea, roofArea: resolvedForGwp.metrics.footprintArea }
-                  ) : null;
-                  designExplorationService.updateNode(nodeId, {
-                    energyRun: {
-                      status: 'complete',
-                      buildingId: building.id,
-                      inputFingerprint: createEnergyInputFingerprint(building, node.buildings),
-                      studyId: result.study_id,
-                      monthlyHeatBalance: result.monthly_heat_balance ?? undefined,
-                    },
-                    metrics: {
-                      heatingDemand: result.heating_demand_kwh_m2,
-                      coolingDemand: result.cooling_demand_kwh_m2,
-                      totalEnergy:   result.total_energy_kwh_m2,
-                      ...(gwp > 0 ? { globalWarmingPotential: gwp } : {}),
-                      ...(breakdown ? { embodiedCarbonBreakdown: breakdown } : {}),
-                    }
-                  });
-                },
-                onError: (err) => designExplorationService.updateNode(nodeId, {
-                  energyRun: { status: 'failed', error: err.message }
+              buildings: node.buildings,
+              epsm: epsmOpts,
+              signal: rerunAbortController.signal,
+              callbacks: {
+                onStatusUpdate: () => designExplorationService.updateNode(nodeId, {
+                  energyRun: { status: 'running', stage: 'Running energy… this can take a minute' }
                 }),
               },
-              rerunAbortController.signal
-            );
+            });
+            const { gwp, breakdown } = epsmOpts ? embodiedCarbonOfBuilding(epsmOpts, building, constructions) : { gwp: 0, breakdown: null };
+            designExplorationService.updateNode(nodeId, {
+              energyRun: {
+                status: 'complete',
+                buildingId: building.id,
+                inputFingerprint: createEnergyInputFingerprint(building, node.buildings),
+                monthlyHeatBalance: result.monthly_heat_balance ?? undefined,
+              },
+              metrics: {
+                heatingDemand: result.heating_demand_kwh_m2,
+                coolingDemand: result.cooling_demand_kwh_m2,
+                totalEnergy:   result.total_energy_kwh_m2,
+                ...(gwp > 0 ? { globalWarmingPotential: gwp } : {}),
+                ...(breakdown ? { embodiedCarbonBreakdown: breakdown } : {}),
+              }
+            });
           } catch (err) {
             designExplorationService.updateNode(nodeId, {
               energyRun: energyRunAfterRerunError(err, rerunAbortController.signal.aborted)

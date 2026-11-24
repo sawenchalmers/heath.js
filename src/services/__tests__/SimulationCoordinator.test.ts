@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { simulationCoordinator } from '../SimulationCoordinator';
 import { energyApiService, type EnergyStudyResult } from '../EnergyApiService';
 import type { EPSMConstructionOptions } from '../EPSMService';
+import { daylightApiService } from '../DaylightApiService';
+import type { DaylightRunSummary } from '../../types/daylight';
 import type { BuildingModel, Point3D } from '../../types/building';
 
 const point = (x: number, z: number): Point3D => ({ x, y: 0, z });
@@ -40,12 +42,23 @@ describe('energy study coordination', () => {
     await simulationCoordinator.runEnergyStudy({
       building,
       buildings,
-      location: 'Gothenburg',
       epsm,
       signal: new AbortController().signal,
     });
 
     expect(run).toHaveBeenCalledOnce();
     expect(run.mock.calls[0][1].neighbours).toBe(buildings);
+  });
+});
+
+describe('daylight study coordination', () => {
+  it('asks for sDA in every building\'s daylight study', async () => {
+    const run = vi.spyOn(daylightApiService, 'runStudyForBuilding').mockResolvedValue({} as DaylightRunSummary);
+    const buildings = [makeBuilding('a', 0), makeBuilding('b', 10)];
+
+    await simulationCoordinator.runDaylightStudySet({ buildings, signal: new AbortController().signal });
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run.mock.calls.map(call => call[1]?.run_sda)).toEqual([true, true]);
   });
 });

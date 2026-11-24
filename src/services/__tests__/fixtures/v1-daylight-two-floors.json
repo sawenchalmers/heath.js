@@ -1,0 +1,305 @@
+{
+ "_note": "A real ace-sim-api v1 response (bf5fc5b), requested once packed and once with pack: false (heath.js #25, 25.1). Regenerate by sending `request` to POST /v1/daylight, once as it is and once with pack: false; then drop worker, started_at and seconds.",
+ "request": {
+  "room": {
+   "footprint_coordinates": [
+    [
+     0,
+     0
+    ],
+    [
+     4,
+     0
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     0,
+     3
+    ]
+   ],
+   "floors": 2,
+   "floor_to_floor_height": 3,
+   "wwr": 0.4,
+   "simulate_all_floors": true,
+   "sensor_grid": {
+    "x_dim": 1,
+    "y_dim": 1,
+    "offset": 0.75
+   }
+  },
+  "daylight": {
+   "run_sda": true,
+   "quality": "preview"
+  }
+ },
+ "packed": {
+  "weather": "default:gothenburg_tmyx.epw",
+  "sensor_count": 24,
+  "sensor_grids": [
+   {
+    "identifier": "floor_01_grid",
+    "full_identifier": "floor_01_grid",
+    "room_identifier": "Daylight_Room_Floor_01",
+    "floor_number": 1,
+    "start_sensor_index": 0,
+    "sensor_count": 12
+   },
+   {
+    "identifier": "floor_02_grid",
+    "full_identifier": "floor_02_grid",
+    "room_identifier": "Daylight_Room_Floor_02",
+    "floor_number": 2,
+    "start_sensor_index": 12,
+    "sensor_count": 12
+   }
+  ],
+  "sensor_points": {
+   "dtype": "float32",
+   "scale": 1.0,
+   "shape": [
+    24,
+    3
+   ],
+   "data": "AAAAPwAAAD8AAEA/AAAAPwAAwD8AAEA/AAAAPwAAIEAAAEA/AADAPwAAAD8AAEA/AADAPwAAwD8AAEA/AADAPwAAIEAAAEA/AAAgQAAAAD8AAEA/AAAgQAAAwD8AAEA/AAAgQAAAIEAAAEA/AABgQAAAAD8AAEA/AABgQAAAwD8AAEA/AABgQAAAIEAAAEA/AAAAPwAAAD8AAHBAAAAAPwAAwD8AAHBAAAAAPwAAIEAAAHBAAADAPwAAAD8AAHBAAADAPwAAwD8AAHBAAADAPwAAIEAAAHBAAAAgQAAAAD8AAHBAAAAgQAAAwD8AAHBAAAAgQAAAIEAAAHBAAABgQAAAAD8AAHBAAABgQAAAwD8AAHBAAABgQAAAIEAAAHBA"
+  },
+  "df_summary": {
+   "mean_df": 14.698,
+   "min_df": 11.376,
+   "max_df": 18.334
+  },
+  "df": {
+   "dtype": "uint16",
+   "scale": 100.0,
+   "shape": [
+    24
+   ],
+   "data": "zAYyBdAGcgVyBGgFKQWvBFkF/QYnBcwGKQdrBSIHpgWzBEkFdAW4BCYF8wYlBc4G"
+  },
+  "sda_summary": {
+   "sda": 100.0,
+   "da_lux": 300,
+   "sda_target_pct": 50.0,
+   "sensor_count": 24,
+   "passing_sensors": 24
+  },
+  "da": {
+   "dtype": "uint16",
+   "scale": 100.0,
+   "shape": [
+    24
+   ],
+   "data": "/SHPIf0h2iGxIcwh1CHPIcQhACLJIeohCyLUIQ4i5SHPIb4h3yHPIcEh+yHPIfIh"
+  }
+ },
+ "plain": {
+  "weather": "default:gothenburg_tmyx.epw",
+  "sensor_count": 24,
+  "sensor_grids": [
+   {
+    "identifier": "floor_01_grid",
+    "full_identifier": "floor_01_grid",
+    "room_identifier": "Daylight_Room_Floor_01",
+    "floor_number": 1,
+    "start_sensor_index": 0,
+    "sensor_count": 12
+   },
+   {
+    "identifier": "floor_02_grid",
+    "full_identifier": "floor_02_grid",
+    "room_identifier": "Daylight_Room_Floor_02",
+    "floor_number": 2,
+    "start_sensor_index": 12,
+    "sensor_count": 12
+   }
+  ],
+  "sensor_points": [
+   [
+    0.5,
+    0.5,
+    0.75
+   ],
+   [
+    0.5,
+    1.5,
+    0.75
+   ],
+   [
+    0.5,
+    2.5,
+    0.75
+   ],
+   [
+    1.5,
+    0.5,
+    0.75
+   ],
+   [
+    1.5,
+    1.5,
+    0.75
+   ],
+   [
+    1.5,
+    2.5,
+    0.75
+   ],
+   [
+    2.5,
+    0.5,
+    0.75
+   ],
+   [
+    2.5,
+    1.5,
+    0.75
+   ],
+   [
+    2.5,
+    2.5,
+    0.75
+   ],
+   [
+    3.5,
+    0.5,
+    0.75
+   ],
+   [
+    3.5,
+    1.5,
+    0.75
+   ],
+   [
+    3.5,
+    2.5,
+    0.75
+   ],
+   [
+    0.5,
+    0.5,
+    3.75
+   ],
+   [
+    0.5,
+    1.5,
+    3.75
+   ],
+   [
+    0.5,
+    2.5,
+    3.75
+   ],
+   [
+    1.5,
+    0.5,
+    3.75
+   ],
+   [
+    1.5,
+    1.5,
+    3.75
+   ],
+   [
+    1.5,
+    2.5,
+    3.75
+   ],
+   [
+    2.5,
+    0.5,
+    3.75
+   ],
+   [
+    2.5,
+    1.5,
+    3.75
+   ],
+   [
+    2.5,
+    2.5,
+    3.75
+   ],
+   [
+    3.5,
+    0.5,
+    3.75
+   ],
+   [
+    3.5,
+    1.5,
+    3.75
+   ],
+   [
+    3.5,
+    2.5,
+    3.75
+   ]
+  ],
+  "df_summary": {
+   "mean_df": 14.698,
+   "min_df": 11.376,
+   "max_df": 18.334
+  },
+  "df": [
+   17.4,
+   13.3,
+   17.44,
+   13.94,
+   11.38,
+   13.84,
+   13.21,
+   11.99,
+   13.69,
+   17.89,
+   13.19,
+   17.4,
+   18.33,
+   13.87,
+   18.26,
+   14.46,
+   12.03,
+   13.53,
+   13.96,
+   12.08,
+   13.18,
+   17.79,
+   13.17,
+   17.42
+  ],
+  "sda_summary": {
+   "sda": 100.0,
+   "da_lux": 300,
+   "sda_target_pct": 50.0,
+   "sensor_count": 24,
+   "passing_sensors": 24
+  },
+  "da": [
+   87.01,
+   86.55,
+   87.01,
+   86.66,
+   86.25,
+   86.52,
+   86.6,
+   86.55,
+   86.44,
+   87.04,
+   86.49,
+   86.82,
+   87.15,
+   86.6,
+   87.18,
+   86.77,
+   86.55,
+   86.38,
+   86.71,
+   86.55,
+   86.41,
+   86.99,
+   86.55,
+   86.9
+  ]
+ }
+}

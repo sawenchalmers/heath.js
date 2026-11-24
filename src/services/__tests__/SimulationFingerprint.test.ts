@@ -46,6 +46,14 @@ describe('simulation input fingerprints', () => {
     expect(energyFingerprintAlone({ ...original, window_to_wall_ratio: 0.5 })).not.toBe(energyFingerprintAlone(original));
   });
 
+  it('keeps an energy result current when only settings the engine doesn\'t receive change', () => {
+    const original = building('target');
+    const energyFingerprintAlone = (target: BuildingData) => createEnergyInputFingerprint(target, [target]);
+    // v1 always models an ideal air system, and the structural system isn't part of the energy request.
+    expect(energyFingerprintAlone({ ...original, hvac_system: 'Radiant' })).toBe(energyFingerprintAlone(original));
+    expect(energyFingerprintAlone({ ...original, structural_system: 'Timber' })).toBe(energyFingerprintAlone(original));
+  });
+
   it('retains working results for metadata commits but not relevant commits, without mutating historical data', () => {
     const original = building('target');
     const historicalResult = {

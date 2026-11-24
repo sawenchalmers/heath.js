@@ -8,7 +8,6 @@ import { createDaylightInputFingerprint } from './SimulationFingerprint';
 
 interface DaylightStudySetOptions {
   buildings: BuildingModel[];
-  location?: string;
   signal: AbortSignal;
   onStatus?: (building: BuildingModel, status: DaylightRunState) => void;
 }
@@ -17,7 +16,6 @@ interface EnergyStudyOptions {
   building: BuildingModel;
   /** All buildings in the scene, used to find walls shared with `building`. */
   buildings: readonly BuildingModel[];
-  location: string;
   epsm: EPSMConstructionOptions | null;
   signal: AbortSignal;
   callbacks?: EnergyRunCallbacks;
@@ -30,14 +28,12 @@ export interface CoordinatedEnergyResult {
 
 /** Owns simulation submission/polling details so the workspace remains UI orchestration only. */
 export class SimulationCoordinator {
-  async runDaylightStudySet({ buildings, location, signal, onStatus }: DaylightStudySetOptions): Promise<Record<string, DaylightRunSummary>> {
-    const runSda = Boolean(location);
+  async runDaylightStudySet({ buildings, signal, onStatus }: DaylightStudySetOptions): Promise<Record<string, DaylightRunSummary>> {
     const results = await Promise.all(buildings.map(building => daylightApiService.runStudyForBuilding(
       building,
       {
-        run_sda: runSda,
-        location,
-        quality: 'full',
+        // v1 computes sDA with the engine's default weather; it no longer depends on a location.
+        run_sda: true,
         selected_floor_number: Math.max(1, building.floors),
         simulate_all_floors: true,
         context_buildings: buildings
@@ -55,7 +51,7 @@ export class SimulationCoordinator {
   }
 
   /** Run an energy study for one building, with shared walls taken from the other buildings. */
-  async runEnergyStudy({ building, buildings, location, epsm, signal, callbacks }: EnergyStudyOptions): Promise<CoordinatedEnergyResult> {
+  async runEnergyStudy({ building, buildings, epsm, signal, callbacks }: EnergyStudyOptions): Promise<CoordinatedEnergyResult> {
     const constructions = resolveEnergyConstructions(epsm, {
       wall: building.wall_construction,
       floor: building.floor_construction,
@@ -67,9 +63,7 @@ export class SimulationCoordinator {
       {
         constructions,
         building_program: building.building_program ?? 'Office',
-        hvac_system: building.hvac_system ?? 'Default HVAC',
         natural_ventilation: building.natural_ventilation ?? false,
-        location,
         neighbours: buildings,
       },
       callbacks,

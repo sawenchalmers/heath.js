@@ -1,16 +1,12 @@
 /**
  * EnergyApiService
  * ----------------
- * Client for the heath-engine backend's energy simulation endpoints.
- * Mirrors the DaylightApiService pattern.
- *
- * Backend endpoints (to be implemented — see ENERGY_SIMULATION.md):
- *   POST   /v1/energy/studies
- *   GET    /v1/energy/studies/{study_id}
- *   GET    /v1/energy/studies/{study_id}/result
+ * Client for the engine's energy endpoint (v1 API): POST /v1/energy, which waits until the
+ * EnergyPlus result is ready and returns it. Mirrors DaylightApiService.
  */
 
 import { BuildingModel } from '../types/building';
+import type { EngineEnergyResult } from '../types/engine';
 import type { AdjacencyInput } from './BuildingAdjacency';
 import { getBuildingFacadeParameters } from './FacadeGeometry';
 import { buildSimulationFootprint, sharedFloorsByEdge } from './SimulationFootprint';
@@ -19,9 +15,7 @@ import { proxyUrl } from './proxyUrl';
 // ── Config ────────────────────────────────────────────────────────────────
 
 // The engine, forwarded under the app's own base path (see proxiedServices.ts).
-const DEFAULT_BASE_URL = proxyUrl('daylight');
-const POLL_INTERVAL_MS = 3000;
-const MAX_POLL_ATTEMPTS = 120; // 6 minutes max
+const DEFAULT_BASE_URL = proxyUrl('engine');
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -35,25 +29,32 @@ export interface EnergyStudyConstructions {
 export interface EnergyStudyOptions {
   constructions: EnergyStudyConstructions;
   building_program?: string;
-  hvac_system?: string;
   natural_ventilation?: boolean;
-  location: string;
   /** Other buildings, used to find walls shared with the simulated building. */
   neighbours?: readonly AdjacencyInput[];
 }
 
-export interface EnergyStudyQueued {
-  study_id: string;
-  status: string;
+/** Body of POST /v1/energy. */
+export interface EnergyStudyRequest {
+  room: ReturnType<EnergyApiService['buildRoomFromBuilding']>;
+  energy: {
+    constructions: EnergyStudyConstructions;
+    building_program: string;
+    natural_ventilation: boolean;
+  };
+  /** Large arrays (the hourly loads, unused so far) as packed typed arrays. */
+  pack: boolean;
 }
 
 export interface EnergyStudyStatus {
-  study_id: string;
+  /** Only on runs from the old engine API; v1 has no study ids. */
+  study_id?: string;
   status: 'queued' | 'running' | 'complete' | 'failed';
   stage?: string;
   error?: string;
 }
 
+/** Monthly gains and losses, kWh/m² per month (positive values; the chart draws losses below zero). */
 export interface MonthlyHeatBalance {
   months: string[];
   heating?: number[];
@@ -66,8 +67,10 @@ export interface MonthlyHeatBalance {
   infiltration_loss?: number[];
 }
 
+/** An energy result in the shape the UI uses. */
 export interface EnergyStudyResult {
-  study_id: string;
+  /** Only on results from the old engine API; v1 has no study ids. */
+  study_id?: string;
   status: string;
   heating_energy_kwh?: number;
   cooling_energy_kwh?: number;
@@ -80,7 +83,6 @@ export interface EnergyStudyResult {
 }
 
 export interface EnergyRunCallbacks {
-  onQueued?: (studyId: string) => void;
   onStatusUpdate?: (status: EnergyStudyStatus) => void;
   onComplete?: (result: EnergyStudyResult) => void;
   onError?: (error: Error) => void;
@@ -92,20 +94,27 @@ export class EnergyApiService {
   private readonly baseUrl: string;
 
   constructor(baseUrl?: string) {
-    const configured = baseUrl || import.meta.env.VITE_DAYLIGHT_API_BASE_URL || DEFAULT_BASE_URL;
+    const configured = baseUrl || import.meta.env.VITE_ENGINE_API_BASE_URL || DEFAULT_BASE_URL;
     this.baseUrl = configured.replace(/\/$/, '');
   }
 
   // ── Request helpers ──────────────────────────────────────────────────────
 
+  /** Send a request to the engine; failures become errors carrying the engine's message for the user. */
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
-      ...init,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}${path}`, {
+        headers: { 'Content-Type': 'application/json' },
+        ...init,
+      });
+    } catch (error) {
+      if (init?.signal?.aborted) throw new Error('Energy study aborted');
+      throw error;
+    }
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`Energy API ${res.status} ${path}: ${body}`);
+      throw new Error(`Energy API ${res.status} ${path}: ${engineMessage(body)}`);
     }
     return res.json() as Promise<T>;
   }
@@ -137,88 +146,77 @@ export class EnergyApiService {
     };
   }
 
-  // ── API calls ────────────────────────────────────────────────────────────
-
-  async startStudy(
-    building: BuildingModel,
-    options: EnergyStudyOptions,
-    signal?: AbortSignal
-  ): Promise<EnergyStudyQueued> {
-    const room = this.buildRoomFromBuilding(building, options.neighbours ?? []);
-
-    // Resolve constructions: prefer explicitly passed options, fall back to building fields
-    const constructions: EnergyStudyConstructions = {
-      wall:   options.constructions?.wall   || building.wall_construction   || 'Default Wall',
-      floor:  options.constructions?.floor  || building.floor_construction  || 'Default Floor',
-      roof:   options.constructions?.roof   || building.roof_construction   || 'Default Roof',
-      window: options.constructions?.window || building.window_construction || 'Default Window',
+  /**
+   * The v1 request for one building: its room and the energy options. The constructions must be EPSM names
+   * (the caller resolves them, see resolveEnergyConstructions); the engine rejects unknown names.
+   */
+  buildEnergyRequest(building: BuildingModel, options: EnergyStudyOptions): EnergyStudyRequest {
+    return {
+      room: this.buildRoomFromBuilding(building, options.neighbours ?? []),
+      energy: {
+        constructions: options.constructions,
+        building_program: options.building_program ?? building.building_program ?? 'Office',
+        natural_ventilation: options.natural_ventilation ?? building.natural_ventilation ?? false,
+      },
+      pack: true,
     };
+  }
 
-    const body = {
-      room,
-      constructions,
-      building_program: options.building_program ?? building.building_program ?? 'Office',
-      hvac_system:      options.hvac_system      ?? building.hvac_system      ?? 'Default HVAC',
-      natural_ventilation: options.natural_ventilation ?? building.natural_ventilation ?? false,
-      location: options.location,
-    };
+  // ── API call ─────────────────────────────────────────────────────────────
 
-    return this.request<EnergyStudyQueued>('/v1/energy/studies', {
+  /** POST /v1/energy: waits until the engine has the result; aborting the signal also cancels the job there if it hasn't started yet; a running job finishes anyway. */
+  async postEnergy(request: EnergyStudyRequest, signal?: AbortSignal): Promise<EngineEnergyResult> {
+    return this.request<EngineEnergyResult>('/v1/energy', {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify(request),
       signal,
     });
   }
 
-  async getStatus(studyId: string, signal?: AbortSignal): Promise<EnergyStudyStatus> {
-    return this.request<EnergyStudyStatus>(`/v1/energy/studies/${studyId}`, { signal });
-  }
-
-  async getResult(studyId: string, signal?: AbortSignal): Promise<EnergyStudyResult> {
-    return this.request<EnergyStudyResult>(`/v1/energy/studies/${studyId}/result`, { signal });
-  }
-
-  // ── Polling wrapper ──────────────────────────────────────────────────────
-
-  /**
-   * Submit an energy study and poll until complete or failed.
-   * Mirrors DaylightApiService.runStudyForBuilding() pattern.
-   */
+  /** Run one energy study and report its progress: running, then complete or failed. */
   async runEnergyStudy(
     building: BuildingModel,
     options: EnergyStudyOptions,
     callbacks: EnergyRunCallbacks = {},
     signal?: AbortSignal
   ): Promise<EnergyStudyResult> {
-    const queued = await this.startStudy(building, options, signal);
-    callbacks.onQueued?.(queued.study_id);
-
-    let attempts = 0;
-    while (attempts < MAX_POLL_ATTEMPTS) {
-      if (signal?.aborted) throw new Error('Energy study aborted');
-
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
-
-      const status = await this.getStatus(queued.study_id, signal);
-      callbacks.onStatusUpdate?.(status);
-
-      if (status.status === 'complete') {
-        const result = await this.getResult(queued.study_id, signal);
-        callbacks.onComplete?.(result);
-        return result;
-      }
-
-      if (status.status === 'failed') {
-        const err = new Error(status.error ?? 'Energy simulation failed');
-        callbacks.onError?.(err);
-        throw err;
-      }
-
-      attempts++;
+    callbacks.onStatusUpdate?.({ status: 'running' });
+    try {
+      const result = summariseEnergyResult(await this.postEnergy(this.buildEnergyRequest(building, options), signal));
+      callbacks.onComplete?.(result);
+      return result;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      callbacks.onError?.(err);
+      throw err;
     }
-
-    throw new Error('Energy study timed out after polling limit');
   }
+}
+
+/** The engine's message for the user from an error body ({ error, message }, possibly wrapped in `detail`), else the body. */
+const engineMessage = (body: string): string => {
+  try {
+    const json = JSON.parse(body) as { message?: string; detail?: string | { message?: string } };
+    const detail = typeof json.detail === 'object' ? json.detail?.message : json.detail;
+    return json.message || detail || body;
+  } catch {
+    return body;
+  }
+};
+
+/** Turns a v1 energy result into the shape the UI uses: annual totals, per m², and the monthly heat balance. */
+export function summariseEnergyResult(result: EngineEnergyResult): EnergyStudyResult {
+  const monthly = result.monthly_heat_balance as MonthlyHeatBalance | null | undefined;
+  return {
+    status: 'complete',
+    heating_energy_kwh: result.heating_energy_kwh,
+    cooling_energy_kwh: result.cooling_energy_kwh,
+    total_energy_kwh: result.total_energy_kwh,
+    heating_demand_kwh_m2: result.heating_demand_kwh_m2,
+    cooling_demand_kwh_m2: result.cooling_demand_kwh_m2,
+    total_energy_kwh_m2: result.total_energy_kwh_m2,
+    monthly_heat_balance: Array.isArray(monthly?.months) ? monthly! : undefined,
+  };
 }
 
 export const energyApiService = new EnergyApiService();

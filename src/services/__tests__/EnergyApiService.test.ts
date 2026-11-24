@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { energyApiService, type EnergyStudyOptions } from '../EnergyApiService';
+import { energyApiService, summariseEnergyResult, type EnergyStudyOptions } from '../EnergyApiService';
+import type { EngineEnergyResult } from '../../types/engine';
+import realEnergyFixture from './fixtures/v1-energy.json';
 import type { BuildingModel, Point3D } from '../../types/building';
 
 const point = (x: number, z: number): Point3D => ({ x, y: 0, z });
@@ -22,15 +24,25 @@ const eastNeighbour = (floors: number) => ({ id: 'east', points: box(10, 4, 20, 
 
 const options: EnergyStudyOptions = {
   constructions: { wall: 'Wall', floor: 'Floor', roof: 'Roof', window: 'Window' },
-  location: 'Gothenburg',
 };
 
-/** Start an energy study with `fetch` stubbed out, and return the `room` part of the request body. */
-const sentRoom = async (building: BuildingModel, neighbours?: EnergyStudyOptions['neighbours']) => {
-  const fetchStub = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ study_id: 'study', status: 'queued' }) });
-  vi.stubGlobal('fetch', fetchStub);
-  await energyApiService.startStudy(building, { ...options, neighbours });
-  return JSON.parse(fetchStub.mock.calls[0][1].body).room;
+/** The `room` part of the request the app would send for `building`. */
+const sentRoom = async (building: BuildingModel, neighbours?: EnergyStudyOptions['neighbours']) =>
+  energyApiService.buildEnergyRequest(building, { ...options, neighbours }).room;
+
+/** A v1 energy result, trimmed from a real response of the local engine (10 × 5 m, 2 floors, Office). */
+const engineResult: EngineEnergyResult = {
+  weather: 'default:gothenburg_tmyx.epw',
+  seconds: 2.5,
+  floor_area_m2: 100,
+  heating_energy_kwh: 7888.2,
+  cooling_energy_kwh: 7502.3,
+  total_energy_kwh: 22318.2,
+  heating_demand_kwh_m2: 78.882,
+  cooling_demand_kwh_m2: 75.023,
+  total_energy_kwh_m2: 223.182,
+  monthly_heat_balance: { months: ['Jan', 'Feb'], heating: [19.748, 13.0752], cooling: [0.0686, 1.1591], infiltration_loss: [5.8626, 5.1951] },
+  heating_hourly_kwh: { dtype: 'float32', scale: 1, shape: [0], data: '' },
 };
 
 afterEach(() => vi.unstubAllGlobals());
@@ -78,5 +90,88 @@ describe('energy request with neighbouring buildings', () => {
 
     expect(room.footprint_coordinates).toEqual([[0, 0], [10, 0], [10, 10], [0, 10]]);
     expect(room).not.toHaveProperty('shared_floors_by_edge');
+  });
+});
+
+describe('energy request options', () => {
+  it('sends the v1 energy block, packed arrays, and no HVAC system or location', () => {
+    const request = energyApiService.buildEnergyRequest(makeBuilding(), { ...options, building_program: 'School' });
+    expect(request.energy).toEqual({ constructions: options.constructions, building_program: 'School', natural_ventilation: false });
+    expect(request.pack).toBe(true);
+    expect(request).not.toHaveProperty('location');
+    expect(request.energy).not.toHaveProperty('hvac_system');
+  });
+
+  it('sends the constructions it is given, and falls back to the building\'s own program', () => {
+    // The caller resolves EPSM names (resolveEnergyConstructions); the building's own fields aren't used for them.
+    const building = { ...makeBuilding(), wall_construction: 'Brick', building_program: 'Retail' };
+    const request = energyApiService.buildEnergyRequest(building, options);
+    expect(request.energy.constructions).toEqual(options.constructions);
+    expect(request.energy.building_program).toBe('Retail');
+  });
+});
+
+describe('summariseEnergyResult', () => {
+  it('keeps the annual totals per m² and the monthly heat balance', () => {
+    expect(summariseEnergyResult(engineResult)).toEqual({
+      status: 'complete',
+      heating_energy_kwh: 7888.2,
+      cooling_energy_kwh: 7502.3,
+      total_energy_kwh: 22318.2,
+      heating_demand_kwh_m2: 78.882,
+      cooling_demand_kwh_m2: 75.023,
+      total_energy_kwh_m2: 223.182,
+      monthly_heat_balance: engineResult.monthly_heat_balance,
+    });
+  });
+
+  // A real v1 response (fixtures/v1-energy.json): if the engine renames a field the chart draws, this fails
+  // instead of the chart silently leaving out a bar. The keys are the bars of MonthlyHeatBalanceChart.
+  it('keeps every field the monthly chart draws, from a real engine response', () => {
+    const chartFields = ['heating', 'solar', 'equipment', 'lighting', 'people', 'infiltration_gain', 'cooling', 'infiltration_loss'];
+    const monthly = summariseEnergyResult(realEnergyFixture.result as unknown as EngineEnergyResult).monthly_heat_balance!;
+
+    expect(monthly.months).toHaveLength(12);
+    for (const field of chartFields) {
+      const values = (monthly as unknown as Record<string, number[]>)[field];
+      expect(values, field).toHaveLength(12);
+      values.forEach(value => expect(Number.isFinite(value), field).toBe(true));
+    }
+  });
+
+  it('leaves out a monthly balance without months', () => {
+    expect(summariseEnergyResult({ ...engineResult, monthly_heat_balance: { heating: [1] } }).monthly_heat_balance).toBeUndefined();
+  });
+});
+
+describe('running an energy study', () => {
+  it('posts to /v1/energy and reports running, then complete', async () => {
+    const fetchStub = vi.fn().mockResolvedValue(new Response(JSON.stringify(engineResult), { status: 200 }));
+    vi.stubGlobal('fetch', fetchStub);
+    const statuses: string[] = [];
+    const onComplete = vi.fn();
+
+    const result = await energyApiService.runEnergyStudy(makeBuilding(), options, { onStatusUpdate: s => statuses.push(s.status), onComplete });
+
+    expect(fetchStub.mock.calls[0][0]).toBe('/proxy/engine/v1/energy');
+    expect(fetchStub.mock.calls[0][1].method).toBe('POST');
+    expect(statuses).toEqual(['running']);
+    expect(onComplete).toHaveBeenCalledWith(result);
+    expect(result.total_energy_kwh_m2).toBe(223.182);
+  });
+
+  it('passes the engine\'s message on when the study fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'bad_request', message: 'Unknown construction: Wall' }), { status: 400 })));
+    const onError = vi.fn();
+
+    await expect(energyApiService.runEnergyStudy(makeBuilding(), options, { onError })).rejects.toThrow('Unknown construction: Wall');
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
+  it('says it was aborted when the request is cancelled', async () => {
+    const controller = new AbortController();
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => { controller.abort(); return Promise.reject(new DOMException('aborted', 'AbortError')); }));
+
+    await expect(energyApiService.runEnergyStudy(makeBuilding(), options, {}, controller.signal)).rejects.toThrow('Energy study aborted');
   });
 });

@@ -12,7 +12,7 @@ export const PROXY_PREFIX = 'proxy/';
 export const PROXIED_SERVICES = {
   climate: 'https://climate.onebuilding.org',
   epsm: 'https://epsm.chalmers.se',
-  daylight: null,
+  engine: null,
 } as const;
 
 export type ProxiedService = keyof typeof PROXIED_SERVICES;

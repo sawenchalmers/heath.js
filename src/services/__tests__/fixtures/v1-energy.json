@@ -1,0 +1,175 @@
+{
+ "_note": "A real ace-sim-api v1 energy response (bf5fc5b) for heath.js #25 (step 25.3), without the per-run fields and the hourly loads. Regenerate by sending request to POST /v1/energy, then drop worker, started_at, seconds, heating_hourly_kwh and cooling_hourly_kwh.",
+ "request": {
+  "room": {
+   "footprint_coordinates": [
+    [
+     0,
+     0
+    ],
+    [
+     10,
+     0
+    ],
+    [
+     10,
+     5
+    ],
+    [
+     0,
+     5
+    ]
+   ],
+   "floors": 2,
+   "floor_to_floor_height": 3.5,
+   "wwr": 0.4
+  },
+  "energy": {
+   "constructions": {
+    "wall": "Brick Wall with Insulation",
+    "floor": "Concrete Floor",
+    "roof": "Insulated Roof",
+    "window": "Triple Glazed Low-E Window"
+   },
+   "building_program": "Office"
+  }
+ },
+ "result": {
+  "weather": "default:gothenburg_tmyx.epw",
+  "floor_area_m2": 100.0,
+  "heating_energy_kwh": 7888.2,
+  "cooling_energy_kwh": 7502.3,
+  "total_energy_kwh": 22318.2,
+  "heating_demand_kwh_m2": 78.882,
+  "cooling_demand_kwh_m2": 75.023,
+  "total_energy_kwh_m2": 223.182,
+  "monthly_heat_balance": {
+   "months": [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+   ],
+   "heating": [
+    19.748,
+    13.0752,
+    7.8268,
+    4.1412,
+    1.3773,
+    0.2166,
+    0.0588,
+    0.3112,
+    1.1663,
+    4.4507,
+    10.1057,
+    16.4044
+   ],
+   "cooling": [
+    0.0686,
+    1.1591,
+    3.3189,
+    6.8914,
+    11.1631,
+    14.17,
+    14.653,
+    11.4992,
+    7.6949,
+    2.4282,
+    0.3106,
+    0.0428
+   ],
+   "people": [
+    0.9957,
+    0.8745,
+    0.9533,
+    0.8119,
+    0.8884,
+    0.8395,
+    0.8109,
+    0.879,
+    0.8248,
+    0.9147,
+    0.9784,
+    0.9593
+   ],
+   "lighting": [
+    2.2767,
+    2.0729,
+    2.361,
+    2.111,
+    2.361,
+    2.265,
+    2.207,
+    2.361,
+    2.1952,
+    2.2767,
+    2.265,
+    2.207
+   ],
+   "equipment": [
+    3.583,
+    3.2502,
+    3.653,
+    3.3914,
+    3.653,
+    3.5187,
+    3.5257,
+    3.653,
+    3.4614,
+    3.583,
+    3.5187,
+    3.5257
+   ],
+   "solar": [
+    3.0492,
+    8.3023,
+    13.241,
+    17.4816,
+    18.7232,
+    19.8964,
+    19.6788,
+    16.5149,
+    13.8549,
+    8.6041,
+    2.94,
+    2.8891
+   ],
+   "infiltration_gain": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0003,
+    0.0115,
+    0.0,
+    0.0003,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "infiltration_loss": [
+    5.8626,
+    5.1951,
+    4.9122,
+    4.3637,
+    3.3259,
+    2.4653,
+    2.105,
+    2.0548,
+    2.3457,
+    3.0883,
+    3.5156,
+    4.8649
+   ]
+  }
+ }
+}

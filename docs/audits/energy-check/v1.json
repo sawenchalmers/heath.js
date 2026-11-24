@@ -1,0 +1,49 @@
+{
+  "engine": "v1",
+  "url": "http://127.0.0.1:8001",
+  "program": "Office",
+  "constructions": {
+    "wall": "Brick Wall with Insulation",
+    "floor": "Concrete Floor",
+    "roof": "Insulated Roof",
+    "window": "Triple Glazed Low-E Window"
+  },
+  "date": "2026-11-23T18:36:58.777Z",
+  "scenes": [
+    {
+      "scene": "Target alone",
+      "heating_kwh_m2": 54.9,
+      "cooling_kwh_m2": 62.6,
+      "total_kwh_m2": 186.8,
+      "seconds": 1.5
+    },
+    {
+      "scene": "Same-height neighbour on part of the east wall",
+      "heating_kwh_m2": 50.7,
+      "cooling_kwh_m2": 57.3,
+      "total_kwh_m2": 177.4,
+      "seconds": 1.6
+    },
+    {
+      "scene": "Lower neighbour (2 of 3 storeys)",
+      "heating_kwh_m2": 52.2,
+      "cooling_kwh_m2": 58.9,
+      "total_kwh_m2": 180.4,
+      "seconds": 1.6
+    },
+    {
+      "scene": "Lower neighbour slid along the wall",
+      "heating_kwh_m2": 52.2,
+      "cooling_kwh_m2": 58.9,
+      "total_kwh_m2": 180.4,
+      "seconds": 1.5
+    },
+    {
+      "scene": "Neighbour not touching",
+      "heating_kwh_m2": 54.9,
+      "cooling_kwh_m2": 62.6,
+      "total_kwh_m2": 186.8,
+      "seconds": 0
+    }
+  ]
+}
