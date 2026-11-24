@@ -164,7 +164,7 @@ export class EnergyApiService {
 
   // ── API call ─────────────────────────────────────────────────────────────
 
-  /** POST /v1/energy: waits until the engine has the result; aborting the signal also cancels the job there. */
+  /** POST /v1/energy: waits until the engine has the result; aborting the signal also cancels the job there if it hasn't started yet; a running job finishes anyway. */
   async postEnergy(request: EnergyStudyRequest, signal?: AbortSignal): Promise<EngineEnergyResult> {
     return this.request<EngineEnergyResult>('/v1/energy', {
       method: 'POST',

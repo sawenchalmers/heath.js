@@ -205,7 +205,7 @@ class DaylightApiService {
     return { ...summariseDaylightResult(result, request), startedAt, completedAt: new Date().toISOString() };
   }
 
-  /** POST /v1/daylight: waits until the engine has the result; aborting the signal also cancels the job there. */
+  /** POST /v1/daylight: waits until the engine has the result; aborting the signal also cancels the job there if it hasn't started yet; a running job finishes anyway. */
   async postDaylight(request: DaylightStudyRequest, signal?: AbortSignal): Promise<EngineDaylightResult> {
     return this.request<EngineDaylightResult>('/v1/daylight', {
       method: 'POST',
