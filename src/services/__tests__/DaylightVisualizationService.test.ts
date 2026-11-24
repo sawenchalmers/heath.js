@@ -11,7 +11,6 @@ const makeResult = (
   points: Array<{ x: number; y: number; z: number; value: number }>,
   grid?: { x_dim: number; y_dim: number; offset: number }
 ): DaylightRunSummary => ({
-  studyId: 'study',
   status: 'complete',
   sensorCount: points.length,
   meanDF: 10,

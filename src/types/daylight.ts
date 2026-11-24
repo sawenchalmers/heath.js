@@ -83,8 +83,6 @@ export interface DaylightOverlayDataset {
 
 export interface DaylightRunSummary {
   inputFingerprint?: string;
-  /** Only on results from the old engine API; v1 has no study ids. */
-  studyId?: string;
   status: DaylightStudyStatus;
   stage?: string;
   sensorCount: number;
@@ -104,7 +102,6 @@ export interface DaylightRunSummary {
 
 export interface DaylightRunState {
   status: DaylightStudyStatus;
-  studyId?: string;
   stage?: string;
   error?: string;
 }

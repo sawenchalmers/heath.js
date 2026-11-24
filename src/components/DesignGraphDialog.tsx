@@ -294,13 +294,6 @@ export const DesignGraphDialog: React.FC<DesignGraphDialogProps> = ({
                       <span className="text-[11px] text-slate-500">Status:</span>
                       <span className="text-[11px] font-semibold text-slate-800 capitalize text-right break-words">{selectedNode.daylightRun.status}</span>
 
-                      {selectedNode.daylightRun.studyId && (
-                        <>
-                          <span className="text-[11px] text-slate-500">Study ID:</span>
-                          <span className="text-[11px] text-slate-700 text-right break-all">{selectedNode.daylightRun.studyId}</span>
-                        </>
-                      )}
-
                       {selectedNode.daylightRun.sensorCount !== undefined && (
                         <>
                           <span className="text-[11px] text-slate-500">Sensors:</span>
