@@ -8,7 +8,7 @@
     "dev": "vite",
     "check:energy": "vite-node scripts/energy-check.ts --",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.scripts.json",
     "preview": "vite preview",
     "test": "vitest",
