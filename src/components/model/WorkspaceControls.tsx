@@ -49,15 +49,18 @@ export function GeometryInspector({ editor, draft }: { editor: WorkspaceEditor; 
 export function WorkspaceControls({ editor, draft, grid, onToggleGridSnap }: { editor: WorkspaceEditor; draft: BuildingEditDraft | null; grid: boolean; onToggleGridSnap: () => void }) {
   const { state: s, projection: p } = editor;
   const drawing = s.tool === 'polygon' || s.tool === 'rectangle';
-  const candidate = s.tool === 'polygon' && p.cursor ? [...p.points, p.cursor] : p.points;
+  // While a placed point is dragged, the outline is the placed points only, without the cursor.
+  const draggingDrawn = s.tool === 'polygon' && s.dragging && s.vertex !== null;
+  const candidate = s.tool === 'polygon' && p.cursor && !draggingDrawn ? [...p.points, p.cursor] : p.points;
   const path = candidate.map(v => `${v.x},${v.y}`).join(' ');
   const activePoint = s.vertex ?? (drawing ? s.points.length - 1 : null);
   const dimensions = candidate.map((a, i) => {
     const b = candidate[(i + 1) % candidate.length];
-    const world = drawing ? (s.tool === 'polygon' && s.cursor ? [...s.points, s.cursor] : s.points[0] && s.cursor ? rectangle(s.points[0], s.cursor) : s.points) : draft?.points ?? [];
+    const world = drawing ? (s.tool === 'polygon' && s.cursor && !draggingDrawn ? [...s.points, s.cursor] : s.points[0] && s.cursor ? rectangle(s.points[0], s.cursor) : s.points) : draft?.points ?? [];
     if (!a || !b || !world[i] || !world[(i + 1) % world.length]) return null;
-    if (!drawing && i !== activePoint && (i + 1) % candidate.length !== activePoint) return null;
-    if (drawing && i < candidate.length - 2) return null;
+    // A dragged drawing point shows the lengths of its two edges, as in Reshape.
+    if ((!drawing || draggingDrawn) && i !== activePoint && (i + 1) % candidate.length !== activePoint) return null;
+    if (drawing && !draggingDrawn && i < candidate.length - 2) return null;
     const q = world[(i + 1) % world.length], w = world[i];
     return <span key={i} className="editor-dimension" style={{ left: (a.x + b.x) / 2, top: (a.y + b.y) / 2 - 15 }}>{Math.hypot(w.x - q.x, w.z - q.z).toFixed(2)} m</span>;
   });
@@ -75,6 +78,7 @@ export function WorkspaceControls({ editor, draft, grid, onToggleGridSnap }: { e
         if (drawing && s.tool !== 'polygon') return <span key={i} aria-hidden="true" className="editor-handle editor-preview-handle" style={style} />;
         // A polygon's placed points can be dragged while drawing; clicking the first one closes it.
         return <button key={i} aria-pressed={drawing ? undefined : s.vertex === i} aria-label={drawing ? (i === 0 ? 'Close footprint, or drag to move point 1' : `Drag to move point ${i + 1}`) : `Point ${i + 1}`} className={`editor-handle ${s.vertex === i ? 'is-selected' : ''}`} style={style}
+          tabIndex={drawing && i !== 0 ? -1 : undefined}
           onPointerDown={e => editor.handlePointer(e, drawing ? 'drawingVertex' : 'vertex', i)}
           onClick={e => { if (e.detail !== 0) return; if (drawing) { if (i === 0) editor.finish(); } else editor.selectVertex(i); }} />;
       })}
@@ -97,7 +101,7 @@ export function WorkspaceControls({ editor, draft, grid, onToggleGridSnap }: { e
       {drawing ? <>
         <button aria-pressed={s.tool === 'polygon'} onClick={() => editor.activate('polygon')}>Polygon</button>
         <button aria-pressed={s.tool === 'rectangle'} onClick={() => editor.activate('rectangle')}>Rectangle</button>
-        <button onClick={() => editor.activate('select')}>Cancel</button>
+        <button title="Cancel drawing · Esc" onClick={() => editor.activate('select')}>Cancel</button>
         <button disabled={Boolean(editor.finishError)} className="editor-finish" onClick={editor.finish}>Finish</button>
       </> : draft ? <>
         <button aria-label="Select tool" aria-pressed={s.tool === 'select'} onClick={() => editor.activate('select')}><MousePointer2 size={15} /></button>

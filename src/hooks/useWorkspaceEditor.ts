@@ -101,6 +101,9 @@ export function useWorkspaceEditor(options: Options) {
   };
   const cancel = () => {
     const o = optionsRef.current;
+    // A cancelled drawing drag puts the point back, as Reshape's edit.cancel() does.
+    const current = gesture.current;
+    if (current?.kind === 'drawingVertex') publish({ points: current.original, vertex: null });
     if (before.current) {
       o.edit.cancel();
       if (selectedId.current) o.edit.open(selectedId.current);
@@ -169,6 +172,8 @@ export function useWorkspaceEditor(options: Options) {
       refreshHistory(n => n + 1); o.onChange(selectedId.current);
   };
   const remove = () => {
+    // A key in the middle of a drawing drag cancels the drag first, as in Reshape.
+    if (gesture.current?.kind === 'drawingVertex') cancel();
     const s = stateRef.current;
     if (s.tool === 'polygon' || s.tool === 'rectangle') {
       publish({ points: s.points.slice(0, -1), error: null }); return;
@@ -183,6 +188,7 @@ export function useWorkspaceEditor(options: Options) {
     }
   };
   const travel = (redo: boolean) => {
+    if (gesture.current?.kind === 'drawingVertex') cancel();
     const previous = stateRef.current;
     if (previous.tool === 'polygon' || previous.tool === 'rectangle') {
       if (!redo && previous.points.length) {
@@ -228,7 +234,8 @@ export function useWorkspaceEditor(options: Options) {
     if (before.current) commit();
     // A drawing point's drag starts from the placed points, not the selected building.
     const original = (kind === 'drawingVertex' ? stateRef.current.points : points()).map(p => ({ ...p }));
-    if (index !== undefined && kind !== 'drawingVertex') publish({ vertex: index, insertion: null });
+    // The dragged drawing point is the active point too, as in Reshape (for the outline and edge lengths).
+    if (index !== undefined) publish({ vertex: index, insertion: null });
     if (kind !== 'draw' && kind !== 'drawingVertex' && kind !== 'select') begin();
     const target = optionsRef.current.containerRef.current!;
     gesture.current = { kind, pointerId: event.pointerId, target, original, candidate: original, start: raw,
@@ -242,6 +249,11 @@ export function useWorkspaceEditor(options: Options) {
     publish({ dragging: true, feedback: '', error: null });
     event.preventDefault(); event.stopPropagation();
   };
+  /** Where a dragged point lands: its start position moved with the pointer, then snapped. */
+  const draggedVertexPosition = (g: Gesture, raw: Point3D, event: PointerEvent) => {
+    const original = g.original[g.vertex!];
+    return snapPoint({ x: original.x + raw.x - g.start.x, y: 0, z: original.z + raw.z - g.start.z }, event, original);
+  };
   const pointerMove = (event: PointerEvent) => {
     lastPointer.current = event;
     const raw = ground(event);
@@ -250,13 +262,12 @@ export function useWorkspaceEditor(options: Options) {
     if (g && event.pointerId !== g.pointerId) return;
     if (g?.kind === 'drawingVertex') {
       // Moves a placed point while drawing; the outline shows red while it would clash.
-      const original = g.original[g.vertex!];
-      const p = snapPoint({ x: original.x + raw.x - g.start.x, y: 0, z: original.z + raw.z - g.start.z }, event, original);
+      const p = draggedVertexPosition(g, raw, event);
       const placed = g.original.map((v, i) => i === g.vertex ? p : v);
-      publish({ points: placed, cursor: p, error: placed.length >= 3 ? creationError(placed, s, false) : null });
+      // Checked like Finish, including Ortho's right angles.
+      publish({ points: placed, cursor: p, error: placed.length >= 3 ? creationError(placed, s, orthoRef.current) : null });
     } else if (g?.kind === 'vertex') {
-      const original = g.original[g.vertex!];
-      const p = snapPoint({ x: original.x + raw.x - g.start.x, y: 0, z: original.z + raw.z - g.start.z }, event, original);
+      const p = draggedVertexPosition(g, raw, event);
       preview(g.original.map((v, i) => i === g.vertex ? p : v));
       publish({ cursor: p });
     } else if (g?.kind === 'move') {
@@ -323,8 +334,11 @@ export function useWorkspaceEditor(options: Options) {
     if (g.kind === 'drawingVertex') {
       // A click on the first point (no drag) still closes the polygon.
       release();
-      drawingRedo.current = [];
-      if (!moved && g.vertex === 0 && s.points.length >= 3) finish();
+      publish({ vertex: null });
+      // A click without a drag leaves the point where it was and keeps Redo, as Reshape's click does.
+      if (moved) { drawingRedo.current = []; return; }
+      publish({ points: g.original, error: null });
+      if (g.vertex === 0 && g.original.length >= 3) finish();
     } else if (g.kind === 'draw') {
       release();
       const p = s.cursor ?? ground(event);
