@@ -354,7 +354,19 @@ export const DesignGraphDialog: React.FC<DesignGraphDialogProps> = ({
                     <div className="rounded border border-rose-200 bg-rose-50 p-2 text-[11px] text-rose-700">
                       {selectedNode.energyRun.error ?? 'Simulation failed'}
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-2 items-start">
+                      <span className="text-[11px] text-slate-500">Status:</span>
+                      <span className="text-[11px] font-semibold text-slate-800 capitalize text-right break-words">{selectedNode.energyRun.status}</span>
+                      <span className="text-[11px] text-slate-500">Building:</span>
+                      <span className="text-[11px] font-semibold text-slate-800 text-right break-words">
+                        {(() => {
+                          const simulated = selectedNode.buildings.find(building => building.id === selectedNode.energyRun?.buildingId);
+                          return simulated ? simulated.name || 'Untitled building' : 'Not recorded';
+                        })()}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">

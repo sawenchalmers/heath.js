@@ -97,4 +97,22 @@ describe('DaylightResultsDialog', () => {
 
     expect(screen.getByText(/room range: 10\.00–20\.00%/i)).toBeInTheDocument();
   });
+
+  it("names the simulated building instead of showing another building's energy and embodied carbon", () => {
+    const message = 'Energy was simulated for Building B, not for this building.';
+    render(
+      <DaylightResultsDialog
+        isOpen
+        onClose={() => undefined}
+        buildingName="Building A"
+        result={makeResult()}
+        energyResults={{ status: 'idle', emptyMessage: message }}
+        onApplyVisualization={() => undefined}
+      />
+    );
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.getByText(`Embodied carbon is calculated with the energy simulation. ${message}`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^energy/i }));
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
 });

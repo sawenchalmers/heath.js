@@ -28,7 +28,8 @@ import { daylightApiService } from '../services/DaylightApiService';
 import { daylightVisualizationService, getOverlayDatasetsForResults } from '../services/DaylightVisualizationService';
 import { getEPSMConstructionOptions, getCachedEPSMOptions, computePortfolioEmbodiedCarbon, embodiedCarbonOfBuilding } from '../services/EPSMService';
 import { DaylightRunSummary } from '../types/daylight';
-import { createEnergyInputFingerprint, isEnergyRunCurrent, retainValidDaylightResults } from '../services/SimulationFingerprint';
+import { createEnergyInputFingerprint, retainValidDaylightResults } from '../services/SimulationFingerprint';
+import { energyResultsForBuilding } from '../utils/resultsForBuilding';
 import { energyRunAfterRerunError } from '../services/EnergyRunUpdates';
 import { DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { SimulationProgressCard, type SimulationTaskState } from './model/SimulationProgressCard';
@@ -1037,27 +1038,7 @@ export const SimpleBuildingCreator: React.FC = () => {
           onClose={() => setShowDaylightResultsDialog(false)}
           buildingName={buildings.find((building) => building.id === activeResultsBuildingId)?.name || 'Selected Building'}
           result={daylightResultsByBuildingId[activeResultsBuildingId]}
-          energyResults={(() => {
-            const node = designExplorationService.getCurrentNode();
-            if (!node) return undefined;
-            // A run in progress shows its status, even before it has a fingerprint for the current scene.
-            const status = node.energyRun?.status;
-            if (status === 'queued' || status === 'running') {
-              return { status };
-            }
-            if (!isEnergyRunCurrent(node.energyRun, buildings)) {
-              return { status: 'idle' as const };
-            }
-            return {
-              heatingDemand: node.metrics.heatingDemand,
-              coolingDemand: node.metrics.coolingDemand,
-              totalEnergy:   node.metrics.totalEnergy,
-              globalWarmingPotential: node.metrics.globalWarmingPotential,
-              embodiedCarbonBreakdown: node.metrics.embodiedCarbonBreakdown,
-              monthlyHeatBalance: node.energyRun?.monthlyHeatBalance,
-              status: node.energyRun?.status ?? 'idle',
-            };
-          })()}
+          energyResults={energyResultsForBuilding(designExplorationService.getCurrentNode(), buildings, activeResultsBuildingId)}
           availableResults={buildings
             .filter((building) => Boolean(daylightResultsByBuildingId[building.id]))
             .map((building) => ({ id: building.id, name: building.name || 'Untitled Building' }))}
