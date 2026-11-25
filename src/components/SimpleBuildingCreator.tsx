@@ -327,6 +327,8 @@ export const SimpleBuildingCreator: React.FC = () => {
     let pendingNodeId: string | null = null;
     if (shouldStoreFirstRunOnBaseline) {
       designExplorationService.updateNodeSnapshot('baseline', {
+        // The baseline takes the first run's name, so messages name the run (to review when the baseline is redefined, #43).
+        name: configurationName,
         buildings: snapshotBuildings,
         metrics: initialMetrics,
         daylightRun: {
@@ -484,6 +486,11 @@ export const SimpleBuildingCreator: React.FC = () => {
     energyAbortControllerRef.current = energyAbortController;
 
     const daylightPromise = runDaylightSimulation(targetBuilding, name, run, runSnapshot);
+    // The run's node says its energy study is on its way, and for which building; otherwise the design history offers Run on
+    // the node, which would abort this study. runDaylightSimulation creates the node before its first await.
+    const runNodeId = designExplorationService.getCurrentNode()?.id;
+    const energyStage = `Simulating ${targetBuilding.name || 'the building'}`;
+    if (runNodeId) designExplorationService.updateNode(runNodeId, { energyRun: { status: 'queued', buildingId: targetBuilding.id, stage: energyStage } });
     const energyPromise = (async () => {
       setSimulationProgress(previous => previous ? { ...previous, energy: { status: 'queued', message: 'Sending energy study…' } } : previous);
       return simulationCoordinator.runEnergyStudy({
@@ -507,14 +514,21 @@ export const SimpleBuildingCreator: React.FC = () => {
     endRun();
     // Aborted by whatever took over (reinstating another configuration, or an energy rerun in the design graph):
     // the current node is no longer this run's, so leave it alone, whether energy failed or had already finished (#28).
-    if (energyAbortController.signal.aborted) return;
+    if (energyAbortController.signal.aborted) {
+      // A cancelled run leaves no study "on its way" behind, unless an energy rerun has taken the node over.
+      const runNode = designExplorationService.getGraph().nodes.find(node => node.id === runNodeId);
+      if (runNodeId && runNode?.energyRun?.status === 'queued' && runNode.energyRun.stage === energyStage) {
+        designExplorationService.updateNode(runNodeId, { energyRun: { status: 'idle', stage: undefined } });
+      }
+      return;
+    }
     const node = designExplorationService.getCurrentNode();
     if (node && energySettled.status === 'fulfilled') {
       const { result: energyResult, constructions } = energySettled.value;
       const { gwp, breakdown } = epsmOpts ? embodiedCarbonOfBuilding(epsmOpts, targetBuilding, constructions) : { gwp: 0, breakdown: null };
       designExplorationService.updateNode(node.id, {
         energyRun: {
-          status: 'complete', buildingId: targetBuilding.id, inputFingerprint: createEnergyInputFingerprint(targetBuilding, runSnapshot),
+          status: 'complete', buildingId: targetBuilding.id, stage: undefined, inputFingerprint: createEnergyInputFingerprint(targetBuilding, runSnapshot),
           monthlyHeatBalance: energyResult.monthly_heat_balance ?? undefined,
         },
         metrics: {
@@ -527,7 +541,7 @@ export const SimpleBuildingCreator: React.FC = () => {
       });
     } else if (node && energySettled.status === 'rejected') {
       designExplorationService.updateNode(node.id, {
-        energyRun: { status: 'failed', buildingId: targetBuilding.id, error: energySettled.reason instanceof Error ? energySettled.reason.message : 'Energy simulation failed.' },
+        energyRun: { status: 'failed', buildingId: targetBuilding.id, stage: undefined, error: energySettled.reason instanceof Error ? energySettled.reason.message : 'Energy simulation failed.' },
       });
     }
   };
@@ -978,12 +992,12 @@ export const SimpleBuildingCreator: React.FC = () => {
         onRunEnergySimulation={async (nodeId) => {
           const node = designExplorationService.getGraph().nodes.find(n => n.id === nodeId);
           if (!node || node.buildings.length === 0) return;
-          if (await daylightApiService.checkEngineStatus() === 'unavailable') {
-            designExplorationService.updateNode(nodeId, { energyRun: { status: 'failed', error: SIMULATIONS_UNAVAILABLE_MESSAGE } });
-            return;
-          }
           // Rerun the building the node's energy study simulated; older nodes without an id fall back to the first building.
           const building = node.buildings.find(b => b.id === node.energyRun?.buildingId) ?? node.buildings[0];
+          if (await daylightApiService.checkEngineStatus() === 'unavailable') {
+            designExplorationService.updateNode(nodeId, { energyRun: { status: 'failed', buildingId: building.id, error: SIMULATIONS_UNAVAILABLE_MESSAGE } });
+            return;
+          }
 
           const epsmOpts = await getEPSMConstructionOptions().catch(() => null);
 
@@ -993,7 +1007,7 @@ export const SimpleBuildingCreator: React.FC = () => {
           energyAbortControllerRef.current = rerunAbortController;
 
           designExplorationService.updateNode(nodeId, {
-            energyRun: { status: 'queued', stage: 'Sending…' }
+            energyRun: { status: 'queued', buildingId: building.id, stage: 'Sending…' }
           });
 
           try {
@@ -1005,7 +1019,7 @@ export const SimpleBuildingCreator: React.FC = () => {
               signal: rerunAbortController.signal,
               callbacks: {
                 onStatusUpdate: () => designExplorationService.updateNode(nodeId, {
-                  energyRun: { status: 'running', stage: 'Running energy… this can take a minute' }
+                  energyRun: { status: 'running', buildingId: building.id, stage: 'Running energy… this can take a minute' }
                 }),
               },
             });

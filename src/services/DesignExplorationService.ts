@@ -123,6 +123,8 @@ export class DesignExplorationService {
   updateNodeSnapshot(
     nodeId: string,
     updates: {
+      /** Renames the node, e.g. the baseline when a session's first run is stored on it (#32 review). */
+      name?: string;
       buildings?: readonly BuildingModel[];
       metrics?: Partial<DesignMetrics>;
       daylightRun?: DaylightRunMetadata;
@@ -133,6 +135,10 @@ export class DesignExplorationService {
     const node = this.graph.nodes.find((candidate) => candidate.id === nodeId);
     if (!node) {
       return null;
+    }
+
+    if (updates.name) {
+      node.name = updates.name;
     }
 
     if (updates.buildings) {
