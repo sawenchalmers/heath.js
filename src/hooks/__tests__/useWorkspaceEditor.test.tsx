@@ -37,6 +37,53 @@ function setup() {
 beforeEach(()=>vi.useFakeTimers());
 afterEach(()=>{vi.clearAllTimers();vi.useRealTimers()});
 describe('workspace interaction ownership',()=>{
+  it('drags a clashing point out while drawing, then finishes the polygon', () => {
+    const h = setup();
+    act(() => h.result.current.editor.activate('polygon'));
+    const click = (p: Point3D) => act(() => {
+      h.element.dispatchEvent(h.event('pointerdown', p)); window.dispatchEvent(h.event('pointerup', p));
+    });
+    // The third point lands inside the existing building (-5…5), so the outline clashes.
+    click({x:-15,y:0,z:-15}); click({x:-8,y:0,z:-15}); click({x:0,y:0,z:0});
+    h.move({x:0,y:0,z:0});
+    expect(h.result.current.editor.state.error).not.toBeNull();
+    act(() => h.result.current.editor.handlePointer({nativeEvent: h.event('pointerdown', {x:0,y:0,z:0})} as React.PointerEvent, 'drawingVertex', 2));
+    h.move({x:-8,y:0,z:-8}); h.up({x:-8,y:0,z:-8});
+    const s = h.result.current.editor.state;
+    expect(s.tool).toBe('polygon');
+    expect(s.points).toHaveLength(3);
+    expect(s.points[2].x).toBeCloseTo(-8); expect(s.points[2].z).toBeCloseTo(-8);
+    expect(s.error).toBeNull();
+    // Dragged onto another placed point, it doesn't close the polygon but says the points overlap.
+    act(() => h.result.current.editor.handlePointer({nativeEvent: h.event('pointerdown', {x:-8,y:0,z:-8})} as React.PointerEvent, 'drawingVertex', 2));
+    h.move({x:-8,y:0,z:-15});
+    expect(h.result.current.editor.state.error).toBe('Footprint vertices cannot overlap.');
+    h.move({x:-8,y:0,z:-8}); h.up({x:-8,y:0,z:-8});
+    act(() => h.result.current.editor.finish());
+    expect(h.result.current.manager.getBuildings()).toHaveLength(2);
+    h.cleanup();
+  });
+
+  it('closes the polygon with a click on its first point, and leaves drawing without a building on cancel', () => {
+    const h = setup();
+    act(() => h.result.current.editor.activate('polygon'));
+    const click = (p: Point3D) => act(() => {
+      h.element.dispatchEvent(h.event('pointerdown', p)); window.dispatchEvent(h.event('pointerup', p));
+    });
+    const first = {x:-15,y:0,z:-15};
+    click(first); click({x:-8,y:0,z:-15}); click({x:-8,y:0,z:-8});
+    act(() => h.result.current.editor.handlePointer({nativeEvent: h.event('pointerdown', first)} as React.PointerEvent, 'drawingVertex', 0));
+    h.up(first);
+    expect(h.result.current.manager.getBuildings()).toHaveLength(2);
+
+    act(() => h.result.current.editor.activate('polygon'));
+    click({x:10,y:0,z:10}); click({x:15,y:0,z:10});
+    act(() => h.result.current.editor.activate('select'));
+    expect(h.result.current.editor.state.points).toHaveLength(0);
+    expect(h.result.current.manager.getBuildings()).toHaveLength(2);
+    h.cleanup();
+  });
+
   it('finishes a rectangle on the second click after the preview has rendered', () => {
     const h = setup();
     act(() => h.result.current.editor.activate('rectangle'));

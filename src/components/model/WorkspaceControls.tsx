@@ -72,10 +72,11 @@ export function WorkspaceControls({ editor, draft, grid, onToggleGridSnap }: { e
       {(s.tool === 'reshape' || drawing) && p.points.map((v, i) => {
         const style = { left: v.x, top: v.y };
         // Preview corners must pass through pointer events, especially the second rectangle corner.
-        if (drawing && !(s.tool === 'polygon' && i === 0)) return <span key={i} aria-hidden="true" className="editor-handle editor-preview-handle" style={style} />;
-        return <button key={i} aria-pressed={drawing ? undefined : s.vertex === i} aria-label={drawing ? 'Close footprint' : `Point ${i + 1}`} className={`editor-handle ${s.vertex === i ? 'is-selected' : ''}`} style={style}
-          onPointerDown={e => { if (!drawing) editor.handlePointer(e, 'vertex', i); }}
-          onClick={e => { if (drawing) editor.finish(); else if (e.detail === 0) editor.selectVertex(i); }} />;
+        if (drawing && s.tool !== 'polygon') return <span key={i} aria-hidden="true" className="editor-handle editor-preview-handle" style={style} />;
+        // A polygon's placed points can be dragged while drawing; clicking the first one closes it.
+        return <button key={i} aria-pressed={drawing ? undefined : s.vertex === i} aria-label={drawing ? (i === 0 ? 'Close footprint, or drag to move point 1' : `Drag to move point ${i + 1}`) : `Point ${i + 1}`} className={`editor-handle ${s.vertex === i ? 'is-selected' : ''}`} style={style}
+          onPointerDown={e => editor.handlePointer(e, drawing ? 'drawingVertex' : 'vertex', i)}
+          onClick={e => { if (e.detail !== 0) return; if (drawing) { if (i === 0) editor.finish(); } else editor.selectVertex(i); }} />;
       })}
       {(drawing || s.dragging) && p.cursor && <span className={`editor-cursor ${s.snap ? 'is-snapped' : ''}`} style={{ left: p.cursor.x, top: p.cursor.y }} />}
       {drawing && p.cursor && s.snap && (s.snap.kind === 'Close' && s.error
@@ -96,6 +97,7 @@ export function WorkspaceControls({ editor, draft, grid, onToggleGridSnap }: { e
       {drawing ? <>
         <button aria-pressed={s.tool === 'polygon'} onClick={() => editor.activate('polygon')}>Polygon</button>
         <button aria-pressed={s.tool === 'rectangle'} onClick={() => editor.activate('rectangle')}>Rectangle</button>
+        <button onClick={() => editor.activate('select')}>Cancel</button>
         <button disabled={Boolean(editor.finishError)} className="editor-finish" onClick={editor.finish}>Finish</button>
       </> : draft ? <>
         <button aria-label="Select tool" aria-pressed={s.tool === 'select'} onClick={() => editor.activate('select')}><MousePointer2 size={15} /></button>
