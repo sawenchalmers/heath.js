@@ -1,12 +1,12 @@
-import type { EnergyResults } from '../components/dialogs/DaylightResultsDialog';
+import type { EnergyResults } from '../types/energyResults';
 import { isEnergyRunCurrent } from '../services/SimulationFingerprint';
 import type { BuildingModel } from '../types/building';
 import type { DesignNode } from '../types/designExploration';
 
-/** A building's display name, or a stand-in when it has none or is gone. */
-const nameOf = (buildings: readonly BuildingModel[], id: string | undefined): string => {
+/** A building's display name; `fallback` when no building has that id. */
+export const buildingNameOf = (buildings: readonly BuildingModel[], id: string | undefined, fallback = 'another building'): string => {
   const building = buildings.find(each => each.id === id);
-  return building ? building.name || 'Untitled building' : 'another building';
+  return building ? building.name || 'Untitled building' : fallback;
 };
 
 /**
@@ -22,14 +22,17 @@ export const energyResultsForBuilding = (
   const run = node.energyRun;
   const status = run?.status;
   const forOtherBuilding = Boolean(run?.buildingId && run.buildingId !== buildingId);
-  const simulatedName = nameOf(buildings, run?.buildingId);
+  const simulatedName = buildingNameOf(buildings, run?.buildingId);
 
   // A run in progress shows its status, even before it has a fingerprint for the current scene.
   if (status === 'queued' || status === 'running') {
     return forOtherBuilding ? { status, emptyMessage: `Energy simulation ${status} for ${simulatedName}…` } : { status };
   }
+ 
   if (forOtherBuilding) {
-    return { status: 'idle', emptyMessage: `Energy was simulated for ${simulatedName}, not for this building.` };
+    if (status === 'failed') return { status: 'idle', emptyMessage: `The energy simulation for ${simulatedName} failed. Energy is simulated for one building per run.` };
+    if (status === 'complete') return { status: 'idle', emptyMessage: `Energy was simulated for ${simulatedName}, not for this building.` };
+    return { status: 'idle', emptyMessage: `Energy is simulated for ${simulatedName} only.` };
   }
   if (status === 'failed') return { status };
   if (!isEnergyRunCurrent(run, buildings)) {

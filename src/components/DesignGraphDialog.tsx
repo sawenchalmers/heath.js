@@ -8,6 +8,7 @@ type GraphNode = DesignNode & d3.SimulationNodeDatum;
 /** An edge between two options; the layout replaces the ids in source and target with the nodes. */
 type GraphLink = d3.SimulationLinkDatum<GraphNode>;
 import { designExplorationService } from '../services/DesignExplorationService';
+import { buildingNameOf } from '../utils/resultsForBuilding';
 
 interface DesignGraphDialogProps {
   isOpen: boolean;
@@ -266,6 +267,10 @@ export const DesignGraphDialog: React.FC<DesignGraphDialogProps> = ({
 
                     {selectedNode.metrics.heatingDemand !== undefined && (
                       <>
+                        <span className="text-[11px] text-slate-500">Energy for:</span>
+                        <span className="text-[11px] font-semibold text-slate-800 text-right break-words">
+                          {buildingNameOf(selectedNode.buildings, selectedNode.energyRun?.buildingId, 'Not recorded')}
+                        </span>
                         <span className="text-[11px] text-slate-500">Heating Demand:</span>
                         <span className="text-[11px] font-semibold text-blue-700 text-right">
                           {selectedNode.metrics.heatingDemand.toFixed(1)} kWh/m²/yr
@@ -360,10 +365,7 @@ export const DesignGraphDialog: React.FC<DesignGraphDialogProps> = ({
                       <span className="text-[11px] font-semibold text-slate-800 capitalize text-right break-words">{selectedNode.energyRun.status}</span>
                       <span className="text-[11px] text-slate-500">Building:</span>
                       <span className="text-[11px] font-semibold text-slate-800 text-right break-words">
-                        {(() => {
-                          const simulated = selectedNode.buildings.find(building => building.id === selectedNode.energyRun?.buildingId);
-                          return simulated ? simulated.name || 'Untitled building' : 'Not recorded';
-                        })()}
+                        {buildingNameOf(selectedNode.buildings, selectedNode.energyRun.buildingId, 'Not recorded')}
                       </span>
                     </div>
                   )}

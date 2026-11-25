@@ -113,6 +113,7 @@ describe('DaylightResultsDialog', () => {
     expect(screen.getByText(message)).toBeInTheDocument();
     expect(screen.getByText(`Embodied carbon is calculated with the energy simulation. ${message}`)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^energy/i }));
+    expect(screen.queryByText('Mean DF')).not.toBeInTheDocument();
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 });

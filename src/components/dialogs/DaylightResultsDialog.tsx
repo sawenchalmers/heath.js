@@ -1,21 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Sun, Activity, Filter, Zap, Leaf, LayoutDashboard } from 'lucide-react';
 import { DaylightRunSummary, DaylightSensorPoint } from '../../types/daylight';
-import { EmbodiedCarbonResult } from '../../services/EPSMService';
-import { MonthlyHeatBalance } from '../../services/EnergyApiService';
+import type { EnergyResults } from '../../types/energyResults';
 import { MonthlyHeatBalanceChart } from '../MonthlyHeatBalanceChart';
-
-export interface EnergyResults {
-  heatingDemand?: number;
-  coolingDemand?: number;
-  totalEnergy?: number;
-  globalWarmingPotential?: number;
-  embodiedCarbonBreakdown?: EmbodiedCarbonResult;
-  monthlyHeatBalance?: MonthlyHeatBalance;
-  status?: 'idle' | 'queued' | 'running' | 'complete' | 'failed';
-  /** Shown instead of the figures, e.g. when energy was simulated for another building (#32). */
-  emptyMessage?: string;
-}
 
 interface DaylightResultsDialogProps {
   isOpen: boolean;

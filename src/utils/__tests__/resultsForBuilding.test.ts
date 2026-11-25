@@ -62,7 +62,31 @@ describe('energyResultsForBuilding', () => {
     });
   });
 
-  it('shows a failed run, no run, and no node as before', () => {
+  it("says how another building's failed or stopped run went, without claiming it was simulated", () => {
+    expect(energyResultsForBuilding(nodeWith({ ...completeRun, status: 'failed' }), scene, first.id)).toEqual({
+      status: 'idle', emptyMessage: 'The energy simulation for Building 2 failed. Energy is simulated for one building per run.',
+    });
+    expect(energyResultsForBuilding(nodeWith({ ...completeRun, status: 'idle' }), scene, first.id))
+      .toEqual({ status: 'idle', emptyMessage: 'Energy is simulated for Building 2 only.' });
+  });
+
+  it('falls back to "another building" when the simulated building is gone', () => {
+    expect(energyResultsForBuilding(nodeWith(completeRun), [first], first.id))
+      .toEqual({ status: 'idle', emptyMessage: 'Energy was simulated for another building, not for this building.' });
+  });
+
+  it('goes out of date when a neighbour starts sharing a wall with the simulated building', () => {
+    const touching = { ...building('touching', 'Building 3', 10) };
+    expect(energyResultsForBuilding(nodeWith(completeRun), [...scene, touching], second.id))
+      .toMatchObject({ status: 'idle', emptyMessage: expect.stringContaining('The design has changed') });
+  });
+
+  it('counts a complete run saved without a building as out of date', () => {
+    expect(energyResultsForBuilding(nodeWith({ ...completeRun, buildingId: undefined }), scene, second.id))
+      .toMatchObject({ status: 'idle', emptyMessage: expect.stringContaining('The design has changed') });
+  });
+
+  it('shows a failed run (before #32 it read "Not yet run"), no run, and no node', () => {
     expect(energyResultsForBuilding(nodeWith({ ...completeRun, status: 'failed' }), scene, second.id)).toEqual({ status: 'failed' });
     expect(energyResultsForBuilding(nodeWith(undefined), scene, first.id)).toEqual({ status: 'idle' });
     expect(energyResultsForBuilding(null, scene, first.id)).toBeUndefined();
