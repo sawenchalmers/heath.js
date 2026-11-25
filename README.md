@@ -118,11 +118,13 @@ services:
     environment: !reset {}
 ```
 
-Then start it in a second terminal and leave that terminal open (on Windows with Docker in WSL, closing it can stop WSL and the engine):
+Then start it from heath.js, in a second terminal, and leave that terminal open:
 
 ```bash
-docker compose up --build
+npm run engine
 ```
+
+This runs `docker compose up` in the engine's folder, `~/heath-engine` unless `HEATH_ENGINE_DIR` names another one (e.g. `HEATH_ENGINE_DIR='~/my-engine' npm run engine`; the quotes keep Git Bash from expanding `~` on the Windows side); add `-- --build` after a change to the engine. On Windows it runs the command in WSL, where Docker runs; keeping it attached to the terminal also keeps WSL, and so the engine, from stopping. Ctrl+C stops the engine.
 
 The dev server forwards `/proxy/engine/` to `http://localhost:8001`, waiting up to 25 minutes for an answer; to use another engine, start the dev server with `VITE_ENGINE_PROXY_TARGET=<url>`. In development, daylight runs at preview quality (`VITE_DAYLIGHT_QUALITY=preview` in `.env.development`): final quality takes minutes per floor on a CPU.
 
