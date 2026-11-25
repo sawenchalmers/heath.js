@@ -27,6 +27,8 @@ interface BuildingEditPanelProps {
   baseDraft: BuildingEditDraft;
   editor?: WorkspaceEditor;
   hasResults?: boolean;
+  /** The run whose results this building had before the design changed, if any (#83). */
+  resultsChangedSince?: string;
   onViewResults?: () => void;
   onChange: (draft: BuildingEditDraft) => void;
   onReset: () => void;
@@ -50,7 +52,7 @@ const Section = ({ title, open, onToggle, children }: { title: string; open: boo
   </section>
 );
 
-export const BuildingEditPanel: React.FC<BuildingEditPanelProps> = ({ draft, onChange, onCommit, onCancel, editor, hasResults = false, onViewResults }) => {
+export const BuildingEditPanel: React.FC<BuildingEditPanelProps> = ({ draft, onChange, onCommit, onCancel, editor, hasResults = false, resultsChangedSince, onViewResults }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState({ identity: true, massing: false, facade: true, constructions: false, program: false, systems: false });
   const [epsm, setEpsm] = useState<EPSMConstructionOptions | null>(null);
@@ -101,7 +103,9 @@ export const BuildingEditPanel: React.FC<BuildingEditPanelProps> = ({ draft, onC
               <button type="button" disabled={!hasResults} onClick={onViewResults}><Eye size={14} />View results</button>
               <button type="button" onClick={editor.deleteSelectedBuilding}><Trash2 size={14} />Delete building</button>
             </div>
-            {!hasResults && <p className="editor-results-hint">No current results. Run studies to view analysis.</p>}
+            {!hasResults && (resultsChangedSince !== undefined
+              ? <p className="editor-results-hint" role="status">The design has changed since the run “{resultsChangedSince}”, so its results are hidden. Undo your changes to see them again, or run studies to update them.</p>
+              : <p className="editor-results-hint">No current results. Run studies to view analysis.</p>)}
           </>}
           {editor && <GeometryInspector editor={editor} draft={draft} />}
           <Section title="Identity" open={open.identity} onToggle={() => toggle('identity')}>

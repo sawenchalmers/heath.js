@@ -29,7 +29,7 @@ import { daylightVisualizationService, getOverlayDatasetsForResults } from '../s
 import { getEPSMConstructionOptions, getCachedEPSMOptions, computePortfolioEmbodiedCarbon, embodiedCarbonOfBuilding } from '../services/EPSMService';
 import { DaylightRunSummary } from '../types/daylight';
 import { createEnergyInputFingerprint, retainValidDaylightResults } from '../services/SimulationFingerprint';
-import { energyResultsForBuilding } from '../utils/resultsForBuilding';
+import { energyResultsForBuilding, resultsChangedSinceRun } from '../utils/resultsForBuilding';
 import { energyRunAfterRerunError } from '../services/EnergyRunUpdates';
 import { DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { SimulationProgressCard, type SimulationTaskState } from './model/SimulationProgressCard';
@@ -893,6 +893,7 @@ export const SimpleBuildingCreator: React.FC = () => {
                 baseDraft={buildingEdit.baseDraft}
                 editor={editor}
                 hasResults={Boolean(buildingEdit.buildingId && daylightResultsByBuildingId[buildingEdit.buildingId])}
+                resultsChangedSince={resultsChangedSinceRun(designExplorationService.getCurrentNode(), buildingEdit.buildingId, daylightResultsByBuildingId)}
                 onViewResults={() => {
                   editor.commitProperty();
                   const id = buildingEdit.buildingId;

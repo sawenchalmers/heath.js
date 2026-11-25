@@ -3,7 +3,7 @@ import { createEnergyInputFingerprint } from '../../services/SimulationFingerpri
 import type { BuildingData } from '../../types/building';
 import type { DaylightRunSummary } from '../../types/daylight';
 import type { DesignNode, EnergyRunMetadata } from '../../types/designExploration';
-import { energyResultsForBuilding } from '../resultsForBuilding';
+import { energyResultsForBuilding, resultsChangedSinceRun } from '../resultsForBuilding';
 
 const point = (x: number, z: number) => ({ x, y: 0, z });
 /** A 10 × 8 m building with its corner at (x, 0); far enough apart that they share no walls. */
@@ -66,5 +66,17 @@ describe('energyResultsForBuilding', () => {
     expect(energyResultsForBuilding(nodeWith({ ...completeRun, status: 'failed' }), scene, second.id)).toEqual({ status: 'failed' });
     expect(energyResultsForBuilding(nodeWith(undefined), scene, first.id)).toEqual({ status: 'idle' });
     expect(energyResultsForBuilding(null, scene, first.id)).toBeUndefined();
+  });
+});
+
+describe('resultsChangedSinceRun', () => {
+  it("names the run when the building's results no longer match the design", () => {
+    expect(resultsChangedSinceRun(nodeWith(completeRun), first.id, { second: {} })).toBe('Run 3');
+  });
+
+  it('says nothing while the results still match, or when the run had none for the building', () => {
+    expect(resultsChangedSinceRun(nodeWith(completeRun), first.id, { first: {} })).toBeUndefined();
+    expect(resultsChangedSinceRun({ ...nodeWith(completeRun), daylightResultsByBuildingId: {} }, first.id, {})).toBeUndefined();
+    expect(resultsChangedSinceRun(null, first.id, {})).toBeUndefined();
   });
 });

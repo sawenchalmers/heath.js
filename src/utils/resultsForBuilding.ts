@@ -48,3 +48,13 @@ export const energyResultsForBuilding = (
   };
 };
 
+/**
+ * The name of the current run when it has daylight results for `buildingId` that no longer match the design,
+ * so the building panel can say why its results are hidden (#83); otherwise undefined.
+ */
+export const resultsChangedSinceRun = (
+  node: DesignNode | null | undefined,
+  buildingId: string | null | undefined,
+  currentResults: Record<string, unknown>,
+): string | undefined =>
+  node && buildingId && node.daylightResultsByBuildingId?.[buildingId] && !currentResults[buildingId] ? node.name : undefined;
