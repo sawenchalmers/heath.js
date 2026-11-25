@@ -18,8 +18,8 @@ authors:
 repository-code: "https://github.com/sawenchalmers/heath.js"
 license: MIT
 # version and date-released are set by `npm version` (scripts/citation-version.mjs)
-version: 0.2.11
-date-released: "2026-11-24"
+version: 0.2.12
+date-released: "2026-11-25"
 keywords:
   - building performance
   - sustainable design

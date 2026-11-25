@@ -72,6 +72,6 @@
 .editor-preview-handle { pointer-events:none; cursor:inherit; }
 .editor-building-actions { display:flex; gap:8px; padding-top:12px; }
 .editor-building-actions button { display:flex; align-items:center; justify-content:center; gap:5px; flex:1; height:32px; border:1px solid #cbd5e1; border-radius:5px; font-size:11px; color:#334155; background:white; }
-.editor-building-actions button:disabled { color:#64748b; cursor:not-allowed; background:#f8fafc; }
+.editor-building-actions button:disabled { color:#94a3b8; border-style:dashed; cursor:not-allowed; background:#f1f5f9; }
 .editor-building-actions button:not(:disabled):hover { background:#eff6ff; color:#1d4ed8; }
 .editor-results-hint { font-size:11px; color:#64748b; margin-top:6px; }

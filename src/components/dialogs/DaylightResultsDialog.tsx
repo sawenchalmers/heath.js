@@ -1,19 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Sun, Activity, Filter, Zap, Leaf, LayoutDashboard } from 'lucide-react';
 import { DaylightRunSummary, DaylightSensorPoint } from '../../types/daylight';
-import { EmbodiedCarbonResult } from '../../services/EPSMService';
-import { MonthlyHeatBalance } from '../../services/EnergyApiService';
+import type { EnergyResults } from '../../types/energyResults';
 import { MonthlyHeatBalanceChart } from '../MonthlyHeatBalanceChart';
-
-export interface EnergyResults {
-  heatingDemand?: number;
-  coolingDemand?: number;
-  totalEnergy?: number;
-  globalWarmingPotential?: number;
-  embodiedCarbonBreakdown?: EmbodiedCarbonResult;
-  monthlyHeatBalance?: MonthlyHeatBalance;
-  status?: 'idle' | 'queued' | 'running' | 'complete' | 'failed';
-}
 
 interface DaylightResultsDialogProps {
   isOpen: boolean;
@@ -330,11 +319,11 @@ export const DaylightResultsDialog: React.FC<DaylightResultsDialogProps> = ({
                   </div>
                 ) : (
                   <p className="text-xs text-slate-500 bg-slate-50 rounded-md p-2.5 border border-slate-200">
-                    {energyResults?.status === 'queued' || energyResults?.status === 'running'
+                    {energyResults?.emptyMessage ?? (energyResults?.status === 'queued' || energyResults?.status === 'running'
                       ? `Energy simulation ${energyResults.status}…`
                       : energyResults?.status === 'failed'
                         ? 'Energy simulation failed'
-                        : 'Not yet run — click Run in the Design Graph'}
+                        : 'Not yet run — click Run in the Design Graph')}
                   </p>
                 )}
               </div>
@@ -353,7 +342,7 @@ export const DaylightResultsDialog: React.FC<DaylightResultsDialogProps> = ({
                   </div>
                 ) : (
                   <p className="text-xs text-slate-500 bg-slate-50 rounded-md p-2.5 border border-slate-200">
-                    Select constructions in Edit Building to compute embodied carbon
+                    {energyResults?.emptyMessage ? `Embodied carbon is calculated with the energy simulation. ${energyResults.emptyMessage}` : 'Select constructions in Edit Building to compute embodied carbon'}
                   </p>
                 )}
               </div>
@@ -511,11 +500,11 @@ export const DaylightResultsDialog: React.FC<DaylightResultsDialogProps> = ({
                 <div className="text-center py-10 text-slate-500">
                   <Zap className="w-8 h-8 mx-auto mb-3 text-slate-400" />
                   <p className="text-sm">
-                    {energyResults?.status === 'queued' || energyResults?.status === 'running'
+                    {energyResults?.emptyMessage ?? (energyResults?.status === 'queued' || energyResults?.status === 'running'
                       ? `Energy simulation ${energyResults.status}…`
                       : energyResults?.status === 'failed'
                         ? 'Energy simulation failed. Try re-running from the Design Graph.'
-                        : 'Open the Design Graph and click Run on this node to run an energy simulation.'}
+                        : 'Open the Design Graph and click Run on this node to run an energy simulation.')}
                   </p>
                 </div>
               )}
@@ -560,7 +549,7 @@ export const DaylightResultsDialog: React.FC<DaylightResultsDialogProps> = ({
               ) : (
                 <div className="text-center py-10 text-slate-500">
                   <Leaf className="w-8 h-8 mx-auto mb-3 text-slate-400" />
-                  <p className="text-sm">Run an energy simulation to compute embodied carbon.</p>
+                  <p className="text-sm">{energyResults?.emptyMessage ? `Embodied carbon is calculated with the energy simulation. ${energyResults.emptyMessage}` : 'Run an energy simulation to compute embodied carbon.'}</p>
                 </div>
               )}
             </div>

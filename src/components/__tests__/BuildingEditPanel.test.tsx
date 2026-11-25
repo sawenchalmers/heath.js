@@ -127,4 +127,13 @@ describe('building summary actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete building' }));
     expect(deleteSelectedBuilding).toHaveBeenCalledOnce();
   });
+
+  it('says why the results are hidden when an edit made them out of date', () => {
+    const draft = createBuildingEditDraft(makeBuilding());
+    const editor = { state: { tool: 'select', vertex: null } } as unknown as WorkspaceEditor;
+    render(<BuildingEditPanel draft={draft} baseDraft={draft} editor={editor} onChange={vi.fn()} onReset={vi.fn()} onCommit={vi.fn()} onCancel={vi.fn()} resultsChangedSince="Run 3" />);
+    expect(screen.getByRole('status')).toHaveTextContent('The design has changed since the run “Run 3”, so its results are hidden.');
+    expect(screen.queryByText('No current results. Run studies to view analysis.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'View results' })).toBeDisabled();
+  });
 });
