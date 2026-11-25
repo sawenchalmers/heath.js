@@ -72,5 +72,6 @@ describe('whether a drawn footprint can become a building', () => {
     expect(footprintCreationError(slanted, existing, false)).toBeNull();
     expect(footprintCreationError(slanted, existing, true)).toMatch(/close at 90°/);
     expect(footprintCreationError(rectangle(at(20, 0), at(30, 8)), existing, true)).toBeNull();
+    expect(footprintCreationError([at(20, 0), at(33, 0), at(30, 8), at(20, 8)], existing, true)).toMatch(/Keep every corner at 90°/);
   });
 });

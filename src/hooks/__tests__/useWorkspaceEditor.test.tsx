@@ -37,6 +37,117 @@ function setup() {
 beforeEach(()=>vi.useFakeTimers());
 afterEach(()=>{vi.clearAllTimers();vi.useRealTimers()});
 describe('workspace interaction ownership',()=>{
+  it('drags a clashing point out while drawing, then finishes the polygon', () => {
+    const h = setup();
+    act(() => h.result.current.editor.activate('polygon'));
+    const click = (p: Point3D) => act(() => {
+      h.element.dispatchEvent(h.event('pointerdown', p)); window.dispatchEvent(h.event('pointerup', p));
+    });
+    // The third point lands inside the existing building (-5…5), so the outline clashes.
+    click({x:-15,y:0,z:-15}); click({x:-8,y:0,z:-15}); click({x:0,y:0,z:0});
+    h.move({x:0,y:0,z:0});
+    expect(h.result.current.editor.state.error).not.toBeNull();
+    act(() => h.result.current.editor.handlePointer({nativeEvent: h.event('pointerdown', {x:0,y:0,z:0})} as React.PointerEvent, 'drawingVertex', 2));
+    h.move({x:-8,y:0,z:-8}); h.up({x:-8,y:0,z:-8});
+    const s = h.result.current.editor.state;
+    expect(s.tool).toBe('polygon');
+    expect(s.points).toHaveLength(3);
+    expect(s.points[2].x).toBeCloseTo(-8); expect(s.points[2].z).toBeCloseTo(-8);
+    expect(s.error).toBeNull();
+    // Dragged onto another placed point, it doesn't close the polygon but says the points overlap.
+    act(() => h.result.current.editor.handlePointer({nativeEvent: h.event('pointerdown', {x:-8,y:0,z:-8})} as React.PointerEvent, 'drawingVertex', 2));
+    h.move({x:-8,y:0,z:-15});
+    expect(h.result.current.editor.state.error).toBe('Footprint vertices cannot overlap.');
+    h.move({x:-8,y:0,z:-8}); h.up({x:-8,y:0,z:-8});
+    act(() => h.result.current.editor.finish());
+    expect(h.result.current.manager.getBuildings()).toHaveLength(2);
+    h.cleanup();
+  });
+
+  it('handles drags of placed points like Reshape: no close by dragging, Esc puts the point back, a click leaves it', () => {
+    const h = setup();
+    act(() => h.result.current.editor.activate('polygon'));
+    const click = (p: Point3D) => act(() => {
+      h.element.dispatchEvent(h.event('pointerdown', p)); window.dispatchEvent(h.event('pointerup', p));
+    });
+    const drag = (i: number) => act(() => h.result.current.editor.handlePointer(
+      {nativeEvent: h.event('pointerdown', h.result.current.editor.state.points[i])} as React.PointerEvent, 'drawingVertex', i));
+    const placed = [{x:-15,y:0,z:-15}, {x:-8,y:0,z:-15}, {x:-8,y:0,z:-8}];
+    placed.forEach(click);
+
+    // Dragging the first point moves it and never closes the polygon, nor offers to.
+    drag(0); h.move({x:-16,y:0,z:-16});
+    expect(h.result.current.editor.state.snap?.kind).not.toBe('Close');
+    h.up({x:-16,y:0,z:-16});
+    expect(h.result.current.manager.getBuildings()).toHaveLength(1);
+    expect(h.result.current.editor.state.points[0].x).toBeCloseTo(-16);
+
+    // Esc in the middle of a drag puts the point back.
+    drag(1); h.move({x:-3,y:0,z:-15});
+    act(() => h.result.current.editor.escape());
+    expect(h.result.current.editor.state.points[1].x).toBeCloseTo(-8);
+    expect(h.result.current.editor.state.tool).toBe('polygon');
+
+    // A click without a drag leaves the point exactly where it was, and keeps Redo.
+    act(() => h.result.current.editor.undo());
+    const before = h.result.current.editor.state.points.map(v => ({ ...v }));
+    drag(1); h.up(h.result.current.editor.state.points[1]);
+    expect(h.result.current.editor.state.points).toEqual(before);
+    expect(h.result.current.editor.canRedo).toBe(true);
+    h.cleanup();
+  });
+
+  it('cancels a drag before Backspace or Undo act on the drawing, as in Reshape', () => {
+    const h = setup();
+    act(() => h.result.current.editor.activate('polygon'));
+    const click = (p: Point3D) => act(() => {
+      h.element.dispatchEvent(h.event('pointerdown', p)); window.dispatchEvent(h.event('pointerup', p));
+    });
+    [{x:-15,y:0,z:-15}, {x:-8,y:0,z:-15}, {x:-8,y:0,z:-8}].forEach(click);
+    act(() => h.result.current.editor.handlePointer({nativeEvent: h.event('pointerdown', {x:-8,y:0,z:-15})} as React.PointerEvent, 'drawingVertex', 1));
+    h.move({x:-3,y:0,z:-15});
+    act(() => h.result.current.editor.remove());
+    const s = h.result.current.editor.state;
+    expect(s.dragging).toBe(false);
+    expect(s.points).toHaveLength(2);
+    expect(s.points[1].x).toBeCloseTo(-8);
+    h.cleanup();
+  });
+
+  it('shows a broken right angle in Ortho mode while a placed point is dragged', () => {
+    const h = setup();
+    act(() => { h.result.current.editor.activate('polygon'); h.result.current.editor.setOrtho(true); });
+    const click = (p: Point3D) => act(() => {
+      h.element.dispatchEvent(h.event('pointerdown', p)); window.dispatchEvent(h.event('pointerup', p));
+    });
+    [{x:-15,y:0,z:-15}, {x:-8,y:0,z:-15}, {x:-8,y:0,z:-8}, {x:-15,y:0,z:-8}].forEach(click);
+    expect(h.result.current.editor.finishError).toBeNull();
+    act(() => h.result.current.editor.handlePointer({nativeEvent: h.event('pointerdown', {x:-8,y:0,z:-15})} as React.PointerEvent, 'drawingVertex', 1));
+    h.move({x:-5,y:0,z:-15});
+    expect(h.result.current.editor.state.error).toBe('Keep every corner at 90° in Ortho mode.');
+    h.cleanup();
+  });
+
+  it('closes the polygon with a click on its first point, and leaves drawing without a building on cancel', () => {
+    const h = setup();
+    act(() => h.result.current.editor.activate('polygon'));
+    const click = (p: Point3D) => act(() => {
+      h.element.dispatchEvent(h.event('pointerdown', p)); window.dispatchEvent(h.event('pointerup', p));
+    });
+    const first = {x:-15,y:0,z:-15};
+    click(first); click({x:-8,y:0,z:-15}); click({x:-8,y:0,z:-8});
+    act(() => h.result.current.editor.handlePointer({nativeEvent: h.event('pointerdown', first)} as React.PointerEvent, 'drawingVertex', 0));
+    h.up(first);
+    expect(h.result.current.manager.getBuildings()).toHaveLength(2);
+
+    act(() => h.result.current.editor.activate('polygon'));
+    click({x:10,y:0,z:10}); click({x:15,y:0,z:10});
+    act(() => h.result.current.editor.activate('select'));
+    expect(h.result.current.editor.state.points).toHaveLength(0);
+    expect(h.result.current.manager.getBuildings()).toHaveLength(2);
+    h.cleanup();
+  });
+
   it('finishes a rectangle on the second click after the preview has rendered', () => {
     const h = setup();
     act(() => h.result.current.editor.activate('rectangle'));

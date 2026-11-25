@@ -75,4 +75,7 @@ export const footprintCreationError = (
   requireOrthogonal: boolean
 ): string | null =>
   validateFootprint(candidate, otherFootprints)
-  ?? (requireOrthogonal && !isOrthogonalFootprint(candidate) ? 'Align the final point with the start to close at 90°.' : null);
+  ?? (requireOrthogonal && !isOrthogonalFootprint(candidate)
+    // Only a misplaced final point gets the closing message; a broken corner before it gets a general one.
+    ? candidate.slice(0, -2).every((p, i) => Math.abs(p.x - candidate[i + 1].x) < 1e-8 || Math.abs(p.z - candidate[i + 1].z) < 1e-8) ? 'Align the final point with the start to close at 90°.' : 'Keep every corner at 90° in Ortho mode.'
+    : null);
