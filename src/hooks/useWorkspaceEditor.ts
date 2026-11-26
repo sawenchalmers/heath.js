@@ -453,10 +453,11 @@ export function useWorkspaceEditor(options: Options) {
     /** Replace every building with `models` as one undoable step called `label`. */
     replaceAll: (models: readonly BuildingModel[], label: string) => {
       cancel();
+      // A drawing's own redo list goes with the drawing, so Redo isn't left on with nothing to redo.
+      drawingRedo.current = [];
       const o = optionsRef.current;
       const snapshot = o.captureSnapshot();
       select(null);
-      o.edit.discard();
       o.replaceWorkspace(models);
       history.current.record(label, snapshot, o.captureSnapshot(), null);
       refreshHistory(n => n + 1); o.onChange(selectedId.current);

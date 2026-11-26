@@ -1,9 +1,9 @@
 {
   "name": "Shared wall: partly touching",
-  "description": "Two buildings sharing part of a wall (4 m of 8 m); 3 floors each.",
+  "description": "Two buildings (one teal) sharing part of a wall (4 m of 8 m); 3 floors each.",
   "buildings": [
     {
-      "id": "west",
+      "id": "shared-partial-west",
       "name": "West",
       "points": [
         {
@@ -31,7 +31,7 @@
       "floorHeight": 3.5
     },
     {
-      "id": "east",
+      "id": "shared-partial-east",
       "name": "East",
       "points": [
         {
@@ -56,7 +56,8 @@
         }
       ],
       "floors": 3,
-      "floorHeight": 3.5
+      "floorHeight": 3.5,
+      "color": 7249050
     }
   ]
 }

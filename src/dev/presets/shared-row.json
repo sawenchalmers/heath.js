@@ -1,9 +1,9 @@
 {
   "name": "Shared walls: three in a row",
-  "description": "Three 8 × 8 m buildings in a row; the middle one shares both side walls; 3 floors each.",
+  "description": "Three 8 × 8 m buildings in a row; the middle one (teal) shares both side walls; 3 floors each.",
   "buildings": [
     {
-      "id": "west",
+      "id": "shared-row-west",
       "name": "West",
       "points": [
         {
@@ -31,7 +31,7 @@
       "floorHeight": 3.5
     },
     {
-      "id": "middle",
+      "id": "shared-row-middle",
       "name": "Middle",
       "points": [
         {
@@ -56,10 +56,11 @@
         }
       ],
       "floors": 3,
-      "floorHeight": 3.5
+      "floorHeight": 3.5,
+      "color": 7249050
     },
     {
-      "id": "east",
+      "id": "shared-row-east",
       "name": "East",
       "points": [
         {

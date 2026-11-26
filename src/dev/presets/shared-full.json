@@ -1,9 +1,9 @@
 {
   "name": "Shared wall: fully touching",
-  "description": "Two 10 × 8 m buildings sharing a whole wall; 3 floors each.",
+  "description": "Two 10 × 8 m buildings (one teal) sharing a whole wall; 3 floors each.",
   "buildings": [
     {
-      "id": "west",
+      "id": "shared-full-west",
       "name": "West",
       "points": [
         {
@@ -31,7 +31,7 @@
       "floorHeight": 3.5
     },
     {
-      "id": "east",
+      "id": "shared-full-east",
       "name": "East",
       "points": [
         {
@@ -56,7 +56,8 @@
         }
       ],
       "floors": 3,
-      "floorHeight": 3.5
+      "floorHeight": 3.5,
+      "color": 7249050
     }
   ]
 }

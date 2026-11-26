@@ -1,9 +1,9 @@
 {
   "name": "Shared walls: an L-shaped neighbour",
-  "description": "A square building tucked into the corner of an L-shaped one, sharing two of its walls; 3 floors each.",
+  "description": "A square building (teal) tucked into the corner of an L-shaped one, sharing two of its walls; 3 floors each.",
   "buildings": [
     {
-      "id": "l-shape",
+      "id": "shared-l-neighbour-l-shape",
       "name": "L shape",
       "points": [
         {
@@ -41,7 +41,7 @@
       "floorHeight": 3.5
     },
     {
-      "id": "corner",
+      "id": "shared-l-neighbour-corner",
       "name": "Corner",
       "points": [
         {
@@ -66,7 +66,8 @@
         }
       ],
       "floors": 3,
-      "floorHeight": 3.5
+      "floorHeight": 3.5,
+      "color": 7249050
     }
   ]
 }

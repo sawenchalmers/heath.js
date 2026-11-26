@@ -1,9 +1,9 @@
 {
   "name": "Shared wall: a lower neighbour",
-  "description": "A 4-floor building next to a 2-floor one, so only the lower storeys share the wall (the 50 % rule).",
+  "description": "A 4-floor building next to a 2-floor one (teal), so only the lower storeys share the wall (the 50 % rule).",
   "buildings": [
     {
-      "id": "tall",
+      "id": "shared-lower-tall",
       "name": "Tall",
       "points": [
         {
@@ -31,7 +31,7 @@
       "floorHeight": 3.5
     },
     {
-      "id": "low",
+      "id": "shared-lower-low",
       "name": "Low",
       "points": [
         {
@@ -56,7 +56,8 @@
         }
       ],
       "floors": 2,
-      "floorHeight": 3.5
+      "floorHeight": 3.5,
+      "color": 7249050
     }
   ]
 }

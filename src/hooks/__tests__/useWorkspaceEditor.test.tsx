@@ -51,6 +51,24 @@ describe('workspace interaction ownership',()=>{
     h.cleanup();
   });
 
+  it('replacing the scene mid-drawing ends the drawing, its redo list and the selection', () => {
+    const h = setup();
+    const preset = [{ ...h.result.current.manager.captureSnapshot()[0], id: 'preset-b' }];
+    act(() => h.result.current.editor.activate('polygon'));
+    const click = (p: Point3D) => act(() => {
+      h.element.dispatchEvent(h.event('pointerdown', p)); window.dispatchEvent(h.event('pointerup', p));
+    });
+    click({x:-15,y:0,z:-15}); click({x:-8,y:0,z:-15});
+    act(() => h.result.current.editor.undo());
+    expect(h.result.current.editor.canRedo).toBe(true);
+    act(() => h.result.current.editor.replaceAll(preset, 'Load preset'));
+    const s = h.result.current.editor.state;
+    expect([s.tool, s.points.length]).toEqual(['select', 0]);
+    expect(h.result.current.editor.canRedo).toBe(false);
+    expect(h.result.current.edit.draft).toBeNull();
+    h.cleanup();
+  });
+
   it('drags a clashing point out while drawing, then finishes the polygon', () => {
     const h = setup();
     act(() => h.result.current.editor.activate('polygon'));

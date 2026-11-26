@@ -3,8 +3,11 @@ import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { DEV_PRESETS, type DevPreset } from './presets';
 
-/** A panel next to the left toolbar listing the presets; picking one loads it (replacing the scene), Esc closes it. */
-export const DevPresetMenu: React.FC<{ onPick: (preset: DevPreset) => void; onClose: () => void }> = ({ onPick, onClose }) => {
+/**
+ * A panel next to the left toolbar listing the presets; picking one loads it (replacing the scene), Esc closes it.
+ * `error` is shown when a preset couldn't be loaded, and the panel stays open.
+ */
+export const DevPresetMenu: React.FC<{ onPick: (preset: DevPreset) => void; onClose: () => void; error?: string | null }> = ({ onPick, onClose, error }) => {
   useEffect(() => {
     const key = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); onClose(); } };
     window.addEventListener('keydown', key, true);
@@ -20,6 +23,7 @@ export const DevPresetMenu: React.FC<{ onPick: (preset: DevPreset) => void; onCl
         </div>
         <button type="button" aria-label="Close dev presets" onClick={onClose} className="rounded p-1 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
       </div>
+      {error && <p role="alert" className="mb-2 rounded-md bg-rose-50 p-2 text-[11px] text-rose-700">{error}</p>}
       <ul className="max-h-[60vh] space-y-1 overflow-y-auto">
         {DEV_PRESETS.map(preset => (
           <li key={preset.id}>

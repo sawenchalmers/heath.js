@@ -65,6 +65,7 @@ export const SimpleBuildingCreator: React.FC = () => {
   const [showDaylightResultsDialog, setShowDaylightResultsDialog] = useState(false);
   const [activeResultsBuildingId, setActiveResultsBuildingId] = useState<string | null>(null);
   const [showDevPresets, setShowDevPresets] = useState(false);
+  const [devPresetError, setDevPresetError] = useState<string | null>(null);
   const [isSaveAndRunInProgress, setIsSaveAndRunInProgress] = useState(false);
   /** Set when "Run studies" found no engine; a new value remounts the notice, restarting its timer. Null hides it. */
   const [engineUnavailableNoticeKey, setEngineUnavailableNoticeKey] = useState<number | null>(null);
@@ -902,7 +903,14 @@ export const SimpleBuildingCreator: React.FC = () => {
             />
             {DevPresetMenu && showDevPresets && (
               <React.Suspense fallback={null}>
-                <DevPresetMenu onClose={() => setShowDevPresets(false)} onPick={preset => { setShowDevPresets(false); handleImportConfigConfirm(preset, { undoable: true }); }} />
+                <DevPresetMenu error={devPresetError} onClose={() => { setShowDevPresets(false); setDevPresetError(null); }} onPick={preset => {
+                  try {
+                    handleImportConfigConfirm(preset, { undoable: true });
+                    setShowDevPresets(false); setDevPresetError(null);
+                  } catch (error) {
+                    setDevPresetError(`Couldn't load "${preset.name}": ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }} />
               </React.Suspense>
             )}
 

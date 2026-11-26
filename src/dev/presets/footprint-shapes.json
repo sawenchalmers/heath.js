@@ -3,7 +3,7 @@
   "description": "An L-shaped and a U-shaped (concave) building, 20 m apart; 3 floors each.",
   "buildings": [
     {
-      "id": "l-shape",
+      "id": "footprint-shapes-l-shape",
       "name": "L shape",
       "points": [
         {
@@ -41,7 +41,7 @@
       "floorHeight": 3.5
     },
     {
-      "id": "u-shape",
+      "id": "footprint-shapes-u-shape",
       "name": "U shape",
       "points": [
         {

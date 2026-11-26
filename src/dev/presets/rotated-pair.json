@@ -3,7 +3,7 @@
   "description": "A 10 × 8 m building rotated 20°, its corner touching a straight one; 4 floors each (the #113 daylight test).",
   "buildings": [
     {
-      "id": "rotated",
+      "id": "rotated-pair-rotated",
       "name": "Rotated",
       "points": [
         {
@@ -31,18 +31,18 @@
       "floorHeight": 3.5
     },
     {
-      "id": "straight",
+      "id": "rotated-pair-straight",
       "name": "Straight",
       "points": [
         {
           "x": 6.067,
           "y": 0,
-          "z": -6.0489999999999995
+          "z": -6.049
         },
         {
           "x": 16.067,
           "y": 0,
-          "z": -6.0489999999999995
+          "z": -6.049
         },
         {
           "x": 16.067,
