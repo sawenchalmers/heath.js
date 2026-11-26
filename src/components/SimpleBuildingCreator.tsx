@@ -150,12 +150,19 @@ export const SimpleBuildingCreator: React.FC = () => {
   });
 
   /** Draw the results' daylight overlay, each floor inside its building's floor outline; clear it and give null when there's nothing to draw. */
+  /** The daylight results that still match the current buildings, as the building panel shows them. */
+  const matchingDaylightResults = React.useMemo(
+    () => retainValidDaylightResults(daylightResultsByBuildingId, buildings),
+    [daylightResultsByBuildingId, buildings]);
+
   const drawDaylightOverlay = React.useCallback((
     target: THREE.Scene,
     results: Record<string, DaylightRunSummary>,
     mode: 'df' | 'sda'
   ) => {
-    const datasets = getOverlayDatasetsForResults(results, mode, floorOutlinesById(getBuildings()));
+    // Only results that still match their buildings, e.g. not after an edit during the run.
+    const buildings = getBuildings();
+    const datasets = getOverlayDatasetsForResults(retainValidDaylightResults(results, buildings), mode, floorOutlinesById(buildings));
     if (datasets.length === 0) {
       daylightVisualizationService.clear(target);
       return null;
@@ -915,8 +922,8 @@ export const SimpleBuildingCreator: React.FC = () => {
                 draft={buildingEdit.draft}
                 baseDraft={buildingEdit.baseDraft}
                 editor={editor}
-                hasResults={Boolean(buildingEdit.buildingId && daylightResultsByBuildingId[buildingEdit.buildingId])}
-                resultsChangedSince={resultsChangedSinceRun(designExplorationService.getCurrentNode(), buildingEdit.buildingId, daylightResultsByBuildingId)}
+                hasResults={Boolean(buildingEdit.buildingId && matchingDaylightResults[buildingEdit.buildingId])}
+                resultsChangedSince={resultsChangedSinceRun(designExplorationService.getCurrentNode(), buildingEdit.buildingId, matchingDaylightResults)}
                 onViewResults={() => {
                   editor.commitProperty();
                   const id = buildingEdit.buildingId;

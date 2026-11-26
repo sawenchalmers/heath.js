@@ -8,16 +8,6 @@ import { cellsOf, cellTexels, cellUV, gridFrameOf, type CellTexels, type GridFra
 
 const HISTORICAL_CELL_SIZE_METERS = 0.5;
 
-export const getOverlayPointsForResults = (
-  resultsByBuildingId: Record<string, DaylightRunSummary> | undefined,
-  mode: 'df' | 'sda' = 'df'
-): DaylightSensorPoint[] => {
-  if (!resultsByBuildingId) return [];
-  return Object.values(resultsByBuildingId).flatMap((result) =>
-    mode === 'sda' && result.sdaPoints?.length ? result.sdaPoints : result.points
-  );
-};
-
 /**
  * Preserve each result's backend point order and exact submitted grid dimensions.
  * With `outlines` (floor outlines by building id), each dataset carries its building's floor outline to draw inside.
@@ -57,7 +47,9 @@ const floorsOf = (points: readonly DaylightSensorPoint[]): DaylightSensorPoint[]
   const floors = new Map<number, DaylightSensorPoint[]>();
   for (const point of points) {
     const key = Math.round(point.y * 1000);
-    floors.set(key, [...(floors.get(key) ?? []), point]);
+    const floor = floors.get(key);
+    if (floor) floor.push(point);
+    else floors.set(key, [point]);
   }
   return [...floors.values()];
 };
@@ -90,13 +82,6 @@ const floorSurface = (outline: readonly PlanPoint[], y: number, frame: GridFrame
   return geometry;
 };
 
-/** @deprecated Use getOverlayDatasetsForResults so cell dimensions are retained. */
-export const getOverlayGroupsForResults = (
-  resultsByBuildingId: Record<string, DaylightRunSummary> | undefined,
-  mode: 'df' | 'sda' = 'df'
-): DaylightSensorPoint[][] => getOverlayDatasetsForResults(resultsByBuildingId, mode)
-  .map((dataset) => dataset.points);
-
 export class DaylightVisualizationService {
   private overlayGroup: THREE.Group | null = null;
   private visible = false;
@@ -105,6 +90,7 @@ export class DaylightVisualizationService {
     return this.visible;
   }
 
+  /** Draw the datasets' results in the scene, one surface per floor, replacing any earlier overlay. */
   renderDatasets(
     scene: THREE.Scene,
     datasets: DaylightOverlayDataset[],
@@ -123,11 +109,12 @@ export class DaylightVisualizationService {
     datasets.forEach((dataset, datasetIndex) => {
       floorsOf(dataset.points).forEach((floor, floorIndex) => {
         const dx = dataset.cellSizeX, dz = dataset.cellSizeZ;
-        const frame = gridFrameOf(floor);
+        const frame = gridFrameOf(floor, dx, dz);
         const colors = floor.map(point => srgbBytes(mode === 'sda'
           ? this.getColorForSdaAbsolute(point.value)
           : this.getColorForDfAbsolute(point.value)));
-        const texels = cellTexels(cellsOf(floor, frame, dx, dz), colors, EDGE_FILL_CELLS);
+        // Without an outline nothing is filled past the sensors' own cells, so nothing sticks out past the walls.
+        const texels = cellTexels(cellsOf(floor, frame, dx, dz), colors, dataset.outline ? EDGE_FILL_CELLS : 0);
         const texture = new THREE.DataTexture(texels.data, texels.width, texels.height, THREE.RGBAFormat);
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.magFilter = THREE.NearestFilter;
@@ -157,26 +144,6 @@ export class DaylightVisualizationService {
     scene.add(group);
     this.overlayGroup = group;
     this.setVisible(scene, true);
-  }
-
-  renderSensorPoints(scene: THREE.Scene, points: DaylightSensorPoint[]): void {
-    this.renderDatasets(scene, [{
-      points,
-      cellSizeX: HISTORICAL_CELL_SIZE_METERS,
-      cellSizeZ: HISTORICAL_CELL_SIZE_METERS,
-    }]);
-  }
-
-  renderSensorPointGroups(
-    scene: THREE.Scene,
-    groups: DaylightSensorPoint[][],
-    mode: 'df' | 'sda' = 'df'
-  ): void {
-    this.renderDatasets(scene, groups.map((points) => ({
-      points,
-      cellSizeX: HISTORICAL_CELL_SIZE_METERS,
-      cellSizeZ: HISTORICAL_CELL_SIZE_METERS,
-    })), mode);
   }
 
   setVisible(_scene: THREE.Scene, visible: boolean): void {
