@@ -79,6 +79,8 @@ export interface DaylightOverlayDataset {
   points: DaylightSensorPoint[];
   cellSizeX: number;
   cellSizeZ: number;
+  /** The building's floor outline in plan; the results are drawn inside it. Without it, the cells' own extent. */
+  outline?: ReadonlyArray<{ x: number; z: number }>;
 }
 
 export interface DaylightRunSummary {

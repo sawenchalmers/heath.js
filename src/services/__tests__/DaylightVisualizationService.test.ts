@@ -37,6 +37,15 @@ describe('daylight overlay datasets', () => {
     ]);
   });
 
+  it("carries each building's outline when given", () => {
+    const points = [{ x: 1, y: 0.75, z: 1, value: 1 }];
+    const outline = [{ x: 0, z: 0 }, { x: 2, z: 0 }, { x: 2, z: 2 }];
+    expect(getOverlayDatasetsForResults({ a: makeResult(points), b: makeResult(points) }, 'df', { a: outline })).toEqual([
+      { points, cellSizeX: 0.5, cellSizeZ: 0.5, outline },
+      { points, cellSizeX: 0.5, cellSizeZ: 0.5 },
+    ]);
+  });
+
   it('uses the 0.5 m historical fallback without deriving dimensions from coordinates', () => {
     const points = [{ x: 100, y: 0.75, z: -10, value: 1 }];
     expect(getOverlayDatasetsForResults({ a: makeResult(points) })).toEqual([
@@ -46,44 +55,46 @@ describe('daylight overlay datasets', () => {
 });
 
 describe('DaylightVisualizationService', () => {
-  it('renders one opaque, depth-writing instanced mesh per dataset in sensor order', () => {
+  it('draws one opaque surface per floor, inside the outline, textured with one texel per cell', () => {
     const scene = new THREE.Scene();
     const service = new DaylightVisualizationService();
-    const points = [
-      { x: 4, y: 6.75, z: 3, value: 0.5 },
-      { x: -2, y: 0.75, z: 8, value: 7 },
+    const floor = (y: number) => [
+      { x: 0.25, y, z: 0.25, value: 0.5 }, { x: 0.75, y, z: 0.25, value: 7 },
+      { x: 0.25, y, z: 0.75, value: 3 }, { x: 0.75, y, z: 0.75, value: 12 },
     ];
+    const outline = [{ x: 0, z: 0 }, { x: 1, z: 0 }, { x: 1, z: 1 }, { x: 0, z: 1 }];
 
-    service.renderDatasets(scene, [{ points, cellSizeX: 0.3, cellSizeZ: 0.7 }]);
+    service.renderDatasets(scene, [{ points: [...floor(0.75), ...floor(4.25)], cellSizeX: 0.5, cellSizeZ: 0.5, outline }]);
 
     const group = scene.getObjectByName('daylight-sensor-overlay') as THREE.Group;
-    const mesh = group.children[0] as THREE.InstancedMesh;
+    expect(group.children).toHaveLength(2);
+    const mesh = group.children[0] as THREE.Mesh;
     const material = mesh.material as THREE.MeshBasicMaterial;
-    expect(group.children).toHaveLength(1);
-    expect(mesh.count).toBe(2);
     expect(material.transparent).toBe(false);
-    expect(material.opacity).toBe(1);
-    expect(material.depthTest).toBe(true);
     expect(material.depthWrite).toBe(true);
-    expect(mesh.renderOrder).toBe(0);
+    expect(material.map?.magFilter).toBe(THREE.NearestFilter);
 
-    const size = (mesh.geometry as THREE.PlaneGeometry).parameters;
-    expect(size.width).toBeCloseTo(0.3);
-    expect(size.height).toBeCloseTo(0.7);
-    const matrix = new THREE.Matrix4();
-    const position = new THREE.Vector3();
-    mesh.getMatrixAt(0, matrix);
-    position.setFromMatrixPosition(matrix);
-    expect(position.toArray()).toEqual([4, 6.75, 3]);
-    mesh.getMatrixAt(1, matrix);
-    position.setFromMatrixPosition(matrix);
-    expect(position.toArray()).toEqual([-2, 0.75, 8]);
+    const position = mesh.geometry.getAttribute('position');
+    expect(position.count).toBe(4);
+    expect(position.getY(0)).toBeCloseTo(0.75);
+    expect((group.children[1] as THREE.Mesh).geometry.getAttribute('position').getY(0)).toBeCloseTo(4.25);
+    expect(mesh.geometry.getIndex()?.count).toBe(6);
 
-    const firstColor = new THREE.Color();
-    const secondColor = new THREE.Color();
-    mesh.getColorAt(0, firstColor);
-    mesh.getColorAt(1, secondColor);
-    expect(firstColor.equals(secondColor)).toBe(false);
+    // The outline's corner (0, 0) sits at the outer edge of the first cell's texel: 2 fill rings + half a cell in.
+    const texture = material.map as THREE.DataTexture;
+    const uv = mesh.geometry.getAttribute('uv');
+    expect(uv.getX(0) * texture.image.width).toBeCloseTo(2);
+    expect(uv.getY(0) * texture.image.height).toBeCloseTo(2);
+  });
+
+  it('without an outline, covers the cells and the filled ring around them', () => {
+    const scene = new THREE.Scene();
+    const service = new DaylightVisualizationService();
+    service.renderDatasets(scene, [{ points: [{ x: 1, y: 0.75, z: 1, value: 2 }], cellSizeX: 0.5, cellSizeZ: 0.5 }]);
+    const mesh = (scene.getObjectByName('daylight-sensor-overlay') as THREE.Group).children[0] as THREE.Mesh;
+    const xs = Array.from({ length: 4 }, (_, k) => mesh.geometry.getAttribute('position').getX(k));
+    expect(Math.min(...xs)).toBeCloseTo(1 - 0.25 - 2 * 0.5);
+    expect(Math.max(...xs)).toBeCloseTo(1 + 0.25 + 2 * 0.5);
   });
 
   it('supports repeated hide/show cycles without discarding the overlay', () => {
