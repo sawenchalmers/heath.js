@@ -25,7 +25,7 @@ import { BuildingService } from '../services/BuildingService';
 import { addSampleBuilding } from '../utils/addSampleBuilding';
 import { designExplorationService } from '../services/DesignExplorationService';
 import { daylightApiService } from '../services/DaylightApiService';
-import { daylightVisualizationService, getOverlayDatasetsForResults } from '../services/DaylightVisualizationService';
+import { daylightVisualizationService, floorOutlinesById, getOverlayDatasetsForResults } from '../services/DaylightVisualizationService';
 import { getEPSMConstructionOptions, getCachedEPSMOptions, computePortfolioEmbodiedCarbon, embodiedCarbonOfBuilding } from '../services/EPSMService';
 import { DaylightRunSummary } from '../types/daylight';
 import { createEnergyInputFingerprint, retainValidDaylightResults } from '../services/SimulationFingerprint';
@@ -149,42 +149,58 @@ export const SimpleBuildingCreator: React.FC = () => {
     restoreBuildingPreview,
   });
 
+  /** The daylight results that still match the current buildings, as the building panel and the Results Explorer show them. */
+  const matchingDaylightResults = React.useMemo(
+    () => retainValidDaylightResults(daylightResultsByBuildingId, buildings),
+    [daylightResultsByBuildingId, buildings]);
+
+  /** Draw the results' daylight overlay, each floor inside its building's floor outline; clear it and give null when there's nothing to draw. */
+  const drawDaylightOverlay = React.useCallback((
+    target: THREE.Scene,
+    results: Record<string, DaylightRunSummary>,
+    mode: 'df' | 'sda'
+  ) => {
+    // Only results that still match their buildings, e.g. not after an edit during the run.
+    const buildings = getBuildings();
+    const datasets = getOverlayDatasetsForResults(retainValidDaylightResults(results, buildings), mode, floorOutlinesById(buildings));
+    if (datasets.length === 0) {
+      daylightVisualizationService.clear(target);
+      return null;
+    }
+    daylightVisualizationService.renderDatasets(target, datasets, mode);
+    return datasets.flatMap((dataset) => dataset.points);
+  }, [getBuildings]);
+
   const showDaylightAnalysis = React.useCallback((
     results: Record<string, DaylightRunSummary>,
     mode: 'df' | 'sda'
   ): boolean => {
     if (!scene) return false;
-    const datasets = getOverlayDatasetsForResults(results, mode);
-    const points = datasets.flatMap((dataset) => dataset.points);
-    if (datasets.length === 0) {
-      daylightVisualizationService.clear(scene);
+    const points = drawDaylightOverlay(scene, results, mode);
+    if (!points) {
       setSceneAppearanceMode({ kind: 'normal' });
       updateDaylightLegend([], mode);
       return false;
     }
-    daylightVisualizationService.renderDatasets(scene, datasets, mode);
     setSceneAppearanceMode({ kind: 'daylight-analysis' });
     updateDaylightLegend(points, mode, true);
     return true;
-  }, [scene, setSceneAppearanceMode, updateDaylightLegend]);
+  }, [scene, setSceneAppearanceMode, updateDaylightLegend, drawDaylightOverlay]);
 
   const refreshHiddenDaylightAnalysis = React.useCallback((
     results: Record<string, DaylightRunSummary>,
     mode: 'df' | 'sda'
   ) => {
     if (!scene) return;
-    const datasets = getOverlayDatasetsForResults(results, mode);
-    const points = datasets.flatMap((dataset) => dataset.points);
-    if (datasets.length === 0) {
-      daylightVisualizationService.clear(scene);
-      setDaylightLegend(null);
-    } else {
-      daylightVisualizationService.renderDatasets(scene, datasets, mode);
+    const points = drawDaylightOverlay(scene, results, mode);
+    if (points) {
       daylightVisualizationService.setVisible(scene, false);
       updateDaylightLegend(points, mode, false);
+    } else {
+      setDaylightLegend(null);
     }
     setSceneAppearanceMode({ kind: 'normal' });
-  }, [scene, setSceneAppearanceMode, updateDaylightLegend]);
+  }, [scene, setSceneAppearanceMode, updateDaylightLegend, drawDaylightOverlay]);
 
   const editor = useWorkspaceEditor({
     containerRef, enabled: activeTab === 'model' && isInitialized,
@@ -604,7 +620,7 @@ export const SimpleBuildingCreator: React.FC = () => {
   };
 
   const handleSelectBuildingResult = (buildingId: string) => {
-    const result = daylightResultsByBuildingId[buildingId];
+    const result = matchingDaylightResults[buildingId];
     if (!result || !scene) {
       return;
     }
@@ -906,8 +922,8 @@ export const SimpleBuildingCreator: React.FC = () => {
                 draft={buildingEdit.draft}
                 baseDraft={buildingEdit.baseDraft}
                 editor={editor}
-                hasResults={Boolean(buildingEdit.buildingId && daylightResultsByBuildingId[buildingEdit.buildingId])}
-                resultsChangedSince={resultsChangedSinceRun(designExplorationService.getCurrentNode(), buildingEdit.buildingId, daylightResultsByBuildingId)}
+                hasResults={Boolean(buildingEdit.buildingId && matchingDaylightResults[buildingEdit.buildingId])}
+                resultsChangedSince={resultsChangedSinceRun(designExplorationService.getCurrentNode(), buildingEdit.buildingId, matchingDaylightResults)}
                 onViewResults={() => {
                   editor.commitProperty();
                   const id = buildingEdit.buildingId;
@@ -1047,15 +1063,15 @@ export const SimpleBuildingCreator: React.FC = () => {
         }}
       />
 
-      {activeResultsBuildingId && daylightResultsByBuildingId[activeResultsBuildingId] && (
+      {activeResultsBuildingId && matchingDaylightResults[activeResultsBuildingId] && (
         <DaylightResultsDialog
           isOpen={showDaylightResultsDialog}
           onClose={() => setShowDaylightResultsDialog(false)}
           buildingName={buildings.find((building) => building.id === activeResultsBuildingId)?.name || 'Selected Building'}
-          result={daylightResultsByBuildingId[activeResultsBuildingId]}
+          result={matchingDaylightResults[activeResultsBuildingId]}
           energyResults={energyResultsForBuilding(designExplorationService.getCurrentNode(), buildings, activeResultsBuildingId)}
           availableResults={buildings
-            .filter((building) => Boolean(daylightResultsByBuildingId[building.id]))
+            .filter((building) => Boolean(matchingDaylightResults[building.id]))
             .map((building) => ({ id: building.id, name: building.name || 'Untitled Building' }))}
           selectedBuildingId={activeResultsBuildingId}
           onSelectBuildingResult={handleSelectBuildingResult}
