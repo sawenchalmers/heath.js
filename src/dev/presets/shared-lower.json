@@ -1,0 +1,62 @@
+{
+  "name": "Shared wall: a lower neighbour",
+  "description": "A 4-floor building next to a 2-floor one, so only the lower storeys share the wall (the 50 % rule).",
+  "buildings": [
+    {
+      "id": "tall",
+      "name": "Tall",
+      "points": [
+        {
+          "x": -10,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": -10,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 4,
+      "floorHeight": 3.5
+    },
+    {
+      "id": "low",
+      "name": "Low",
+      "points": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 2,
+      "floorHeight": 3.5
+    }
+  ]
+}

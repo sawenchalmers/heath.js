@@ -30,6 +30,10 @@ import { getEPSMConstructionOptions, getCachedEPSMOptions, computePortfolioEmbod
 import { DaylightRunSummary } from '../types/daylight';
 import { createEnergyInputFingerprint, retainValidDaylightResults } from '../services/SimulationFingerprint';
 import { energyResultsForBuilding, resultsChangedSinceRun } from '../utils/resultsForBuilding';
+// Loaded only on the dev server, so the presets stay out of the live app's bundle.
+const DevPresetMenu = import.meta.env.DEV
+  ? React.lazy(() => import('../dev/DevPresetMenu').then(module => ({ default: module.DevPresetMenu })))
+  : null;
 import { energyRunAfterRerunError } from '../services/EnergyRunUpdates';
 import { DEFAULT_FACADE_PARAMETERS } from '../services/FacadeGeometry';
 import { SimulationProgressCard, type SimulationTaskState } from './model/SimulationProgressCard';
@@ -60,6 +64,7 @@ export const SimpleBuildingCreator: React.FC = () => {
   const [showImportConfigDialog, setShowImportConfigDialog] = useState(false);
   const [showDaylightResultsDialog, setShowDaylightResultsDialog] = useState(false);
   const [activeResultsBuildingId, setActiveResultsBuildingId] = useState<string | null>(null);
+  const [showDevPresets, setShowDevPresets] = useState(false);
   const [isSaveAndRunInProgress, setIsSaveAndRunInProgress] = useState(false);
   /** Set when "Run studies" found no engine; a new value remounts the notice, restarting its timer. Null hides it. */
   const [engineUnavailableNoticeKey, setEngineUnavailableNoticeKey] = useState<number | null>(null);
@@ -254,7 +259,8 @@ export const SimpleBuildingCreator: React.FC = () => {
     setShowImportConfigDialog(true);
   };
 
-  const handleImportConfigConfirm = (config: unknown) => {
+  // `undoable`: a dev preset replaces the scene as one undo step; Import still clears the history (see #127).
+  const handleImportConfigConfirm = (config: unknown, { undoable = false }: { undoable?: boolean } = {}) => {
       const data: unknown[] = Array.isArray(config) ? config :
         config && typeof config === 'object' && Array.isArray((config as { buildings?: unknown }).buildings)
           ? (config as { buildings: unknown[] }).buildings : [];
@@ -270,10 +276,14 @@ export const SimpleBuildingCreator: React.FC = () => {
           name: item.name ?? `Imported Building ${index + 1}`,
         } as BuildingModel);
       });
-      editor.cancel();
-      replaceWorkspace(models);
-      analysisCacheRef.current.clear();
-      editor.reset();
+      if (undoable) {
+        editor.replaceAll(models, 'Load preset');
+      } else {
+        editor.cancel();
+        replaceWorkspace(models);
+        analysisCacheRef.current.clear();
+        editor.reset();
+      }
       setSceneAppearanceMode({ kind: 'normal' });
       if (scene) daylightVisualizationService.clear(scene);
       setDaylightLegend(null); setDaylightResultsByBuildingId({});
@@ -888,7 +898,13 @@ export const SimpleBuildingCreator: React.FC = () => {
               isRunning={isSaveAndRunInProgress}
               onImportConfiguration={handleImportConfiguration}
               onToggleSunController={() => setShowSunController(!showSunController)}
+              onOpenDevPresets={import.meta.env.DEV ? () => setShowDevPresets(open => !open) : undefined}
             />
+            {DevPresetMenu && showDevPresets && (
+              <React.Suspense fallback={null}>
+                <DevPresetMenu onClose={() => setShowDevPresets(false)} onPick={preset => { setShowDevPresets(false); handleImportConfigConfirm(preset, { undoable: true }); }} />
+              </React.Suspense>
+            )}
 
             {/* Bottom Toolbar */}
             <BottomToolbar

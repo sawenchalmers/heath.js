@@ -450,6 +450,17 @@ export function useWorkspaceEditor(options: Options) {
     gridStep, setGridStep, historyVersion, canUndo: history.current.canUndo || state.points.length > 0, canRedo: history.current.canRedo || drawingRedo.current.length > 0,
     undo: () => travel(false), redo: () => travel(true),
     reset: () => { select(null); history.current.clear(); refreshHistory(n => n + 1); },
+    /** Replace every building with `models` as one undoable step called `label`. */
+    replaceAll: (models: readonly BuildingModel[], label: string) => {
+      cancel();
+      const o = optionsRef.current;
+      const snapshot = o.captureSnapshot();
+      select(null);
+      o.edit.discard();
+      o.replaceWorkspace(models);
+      history.current.record(label, snapshot, o.captureSnapshot(), null);
+      refreshHistory(n => n + 1); o.onChange(selectedId.current);
+    },
     // Capture on the persistent canvas container, including insertion controls that disappear during a drag.
     handlePointer: (event: React.PointerEvent, kind: 'vertex' | 'drawingVertex' | 'rotate' | 'move', index?: number, insertion?: Point3D) => {
       startGesture(event.nativeEvent, kind, index, insertion);

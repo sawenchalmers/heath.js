@@ -1,0 +1,90 @@
+{
+  "name": "Shared walls: three in a row",
+  "description": "Three 8 × 8 m buildings in a row; the middle one shares both side walls; 3 floors each.",
+  "buildings": [
+    {
+      "id": "west",
+      "name": "West",
+      "points": [
+        {
+          "x": -12,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": -4,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": -4,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": -12,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    },
+    {
+      "id": "middle",
+      "name": "Middle",
+      "points": [
+        {
+          "x": -4,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": -4,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    },
+    {
+      "id": "east",
+      "name": "East",
+      "points": [
+        {
+          "x": 4,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 12,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 12,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    }
+  ]
+}

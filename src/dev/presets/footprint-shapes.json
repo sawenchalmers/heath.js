@@ -1,0 +1,92 @@
+{
+  "name": "Footprint shapes: L and U",
+  "description": "An L-shaped and a U-shaped (concave) building, 20 m apart; 3 floors each.",
+  "buildings": [
+    {
+      "id": "l-shape",
+      "name": "L shape",
+      "points": [
+        {
+          "x": -30,
+          "y": 0,
+          "z": -8
+        },
+        {
+          "x": -18,
+          "y": 0,
+          "z": -8
+        },
+        {
+          "x": -18,
+          "y": 0,
+          "z": -2
+        },
+        {
+          "x": -24,
+          "y": 0,
+          "z": -2
+        },
+        {
+          "x": -24,
+          "y": 0,
+          "z": 8
+        },
+        {
+          "x": -30,
+          "y": 0,
+          "z": 8
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    },
+    {
+      "id": "u-shape",
+      "name": "U shape",
+      "points": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": -8
+        },
+        {
+          "x": 16,
+          "y": 0,
+          "z": -8
+        },
+        {
+          "x": 16,
+          "y": 0,
+          "z": 8
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 8
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": -2
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": -2
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 8
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 8
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    }
+  ]
+}
