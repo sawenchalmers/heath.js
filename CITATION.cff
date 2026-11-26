@@ -18,7 +18,7 @@ authors:
 repository-code: "https://github.com/sawenchalmers/heath.js"
 license: MIT
 # version and date-released are set by `npm version` (scripts/citation-version.mjs)
-version: 0.2.15
+version: 0.2.16
 date-released: "2026-11-26"
 keywords:
   - building performance

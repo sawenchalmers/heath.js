@@ -1,0 +1,90 @@
+{
+  "name": "Single buildings: 1, 3 and 6 floors",
+  "description": "Three separate 10 × 8 m buildings, 20 m apart, with 1, 3 and 6 floors.",
+  "buildings": [
+    {
+      "id": "single-heights-one-floor",
+      "name": "1 floor",
+      "points": [
+        {
+          "x": -25,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": -15,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": -15,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": -25,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 1,
+      "floorHeight": 3.5
+    },
+    {
+      "id": "single-heights-three-floors",
+      "name": "3 floors",
+      "points": [
+        {
+          "x": -5,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": -5,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    },
+    {
+      "id": "single-heights-six-floors",
+      "name": "6 floors",
+      "points": [
+        {
+          "x": 15,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 25,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 25,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": 15,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 6,
+      "floorHeight": 3.5
+    }
+  ]
+}

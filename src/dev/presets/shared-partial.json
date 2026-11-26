@@ -1,0 +1,63 @@
+{
+  "name": "Shared wall: partly touching",
+  "description": "Two buildings (one teal) sharing part of a wall (4 m of 8 m); 3 floors each.",
+  "buildings": [
+    {
+      "id": "shared-partial-west",
+      "name": "West",
+      "points": [
+        {
+          "x": -10,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": -10,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    },
+    {
+      "id": "shared-partial-east",
+      "name": "East",
+      "points": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": 8
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 8
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5,
+      "color": 7249050
+    }
+  ]
+}

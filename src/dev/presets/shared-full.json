@@ -1,0 +1,63 @@
+{
+  "name": "Shared wall: fully touching",
+  "description": "Two 10 × 8 m buildings (one teal) sharing a whole wall; 3 floors each.",
+  "buildings": [
+    {
+      "id": "shared-full-west",
+      "name": "West",
+      "points": [
+        {
+          "x": -10,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": -10,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    },
+    {
+      "id": "shared-full-east",
+      "name": "East",
+      "points": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5,
+      "color": 7249050
+    }
+  ]
+}

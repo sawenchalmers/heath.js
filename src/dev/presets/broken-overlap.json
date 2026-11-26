@@ -1,0 +1,63 @@
+{
+  "name": "Broken: overlapping buildings",
+  "description": "Deliberately invalid: two buildings overlap by 2 m, so loading fails and the menu shows the error.",
+  "broken": true,
+  "buildings": [
+    {
+      "id": "broken-overlap-first",
+      "name": "First",
+      "points": [
+        {
+          "x": -10,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": -10,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    },
+    {
+      "id": "broken-overlap-second",
+      "name": "Second",
+      "points": [
+        {
+          "x": -2,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 8,
+          "y": 0,
+          "z": -4
+        },
+        {
+          "x": 8,
+          "y": 0,
+          "z": 4
+        },
+        {
+          "x": -2,
+          "y": 0,
+          "z": 4
+        }
+      ],
+      "floors": 3,
+      "floorHeight": 3.5
+    }
+  ]
+}
