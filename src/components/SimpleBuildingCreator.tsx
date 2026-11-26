@@ -149,12 +149,12 @@ export const SimpleBuildingCreator: React.FC = () => {
     restoreBuildingPreview,
   });
 
-  /** Draw the results' daylight overlay, each floor inside its building's floor outline; clear it and give null when there's nothing to draw. */
-  /** The daylight results that still match the current buildings, as the building panel shows them. */
+  /** The daylight results that still match the current buildings, as the building panel and the Results Explorer show them. */
   const matchingDaylightResults = React.useMemo(
     () => retainValidDaylightResults(daylightResultsByBuildingId, buildings),
     [daylightResultsByBuildingId, buildings]);
 
+  /** Draw the results' daylight overlay, each floor inside its building's floor outline; clear it and give null when there's nothing to draw. */
   const drawDaylightOverlay = React.useCallback((
     target: THREE.Scene,
     results: Record<string, DaylightRunSummary>,
@@ -620,7 +620,7 @@ export const SimpleBuildingCreator: React.FC = () => {
   };
 
   const handleSelectBuildingResult = (buildingId: string) => {
-    const result = daylightResultsByBuildingId[buildingId];
+    const result = matchingDaylightResults[buildingId];
     if (!result || !scene) {
       return;
     }
@@ -1063,15 +1063,15 @@ export const SimpleBuildingCreator: React.FC = () => {
         }}
       />
 
-      {activeResultsBuildingId && daylightResultsByBuildingId[activeResultsBuildingId] && (
+      {activeResultsBuildingId && matchingDaylightResults[activeResultsBuildingId] && (
         <DaylightResultsDialog
           isOpen={showDaylightResultsDialog}
           onClose={() => setShowDaylightResultsDialog(false)}
           buildingName={buildings.find((building) => building.id === activeResultsBuildingId)?.name || 'Selected Building'}
-          result={daylightResultsByBuildingId[activeResultsBuildingId]}
+          result={matchingDaylightResults[activeResultsBuildingId]}
           energyResults={energyResultsForBuilding(designExplorationService.getCurrentNode(), buildings, activeResultsBuildingId)}
           availableResults={buildings
-            .filter((building) => Boolean(daylightResultsByBuildingId[building.id]))
+            .filter((building) => Boolean(matchingDaylightResults[building.id]))
             .map((building) => ({ id: building.id, name: building.name || 'Untitled Building' }))}
           selectedBuildingId={activeResultsBuildingId}
           onSelectBuildingResult={handleSelectBuildingResult}

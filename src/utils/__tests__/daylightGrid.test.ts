@@ -40,6 +40,15 @@ describe('gridFrameOf', () => {
     }
   });
 
+  it('puts the x spacing on the right axis when the cells are a whole-number ratio and the first rows are long', () => {
+    for (const [dx, dz] of [[0.3, 0.6], [0.6, 0.3]]) {
+      const points = grid(89.99, 100, 5, dx, dz), frame = gridFrameOf(points, dx, dz);
+      const cells = cellsOf(points, frame, dx, dz);
+      expect(allDistinct(cells.cells)).toBe(true);
+      expect((cells.iMax - cells.iMin + 1) * (cells.jMax - cells.jMin + 1)).toBe(points.length);
+    }
+  });
+
   it("falls back to the plan's axes for a single point, duplicates, or no neighbour one cell away", () => {
     expect(gridFrameOf([{ x: 3, z: 4 }], 0.5, 0.5).u).toEqual({ x: 1, z: 0 });
     expect(gridFrameOf([{ x: 3, z: 4 }, { x: 3, z: 4 }], 0.5, 0.5).u).toEqual({ x: 1, z: 0 });

@@ -19,9 +19,14 @@ const SPACING_TOLERANCE = 0.02;
 const frameAt = (origin: PlanPoint, angle: number): GridFrame =>
   ({ origin, u: { x: Math.cos(angle), z: Math.sin(angle) }, v: { x: -Math.sin(angle), z: Math.cos(angle) } });
 
-/** How far the points lie from cell centres in a frame, summed over a sample (0 for a perfect fit). */
-const misfit = (points: readonly PlanPoint[], frame: GridFrame, dx: number, dz: number) => points
-  .slice(0, ANGLE_SAMPLES)
+/** Up to ANGLE_SAMPLES points spread evenly through the list, so they cover several rows of the grid. */
+const spreadSample = (points: readonly PlanPoint[]) => {
+  const step = Math.max(1, Math.floor(points.length / ANGLE_SAMPLES));
+  return points.filter((_, k) => k % step === 0).slice(0, ANGLE_SAMPLES);
+};
+
+/** How far the points lie from cell centres in a frame, summed over a spread sample (0 for a perfect fit). */
+const misfit = (points: readonly PlanPoint[], frame: GridFrame, dx: number, dz: number) => spreadSample(points)
   .reduce((total, p) => {
     const { s, t } = gridPosition(p, frame, dx, dz);
     return total + Math.abs(s - Math.round(s)) + Math.abs(t - Math.round(t));
@@ -36,9 +41,11 @@ const misfit = (points: readonly PlanPoint[], frame: GridFrame, dx: number, dz: 
 export const gridFrameOf = (points: readonly PlanPoint[], dx: number, dz: number): GridFrame => {
   const origin = { x: points[0].x, z: points[0].z };
   let sumX = 0, sumZ = 0;
-  for (const a of points.slice(0, ANGLE_SAMPLES)) {
+  for (const a of spreadSample(points)) {
     for (const b of points) {
       const d = Math.hypot(b.x - a.x, b.z - a.z);
+      // With very elongated cells (about 5:1), a diagonal neighbour can also be about one cell away; its two mirrored
+      // directions cancel out in the average, so the angle stays exact.
       if (Math.abs(d - dx) > dx * SPACING_TOLERANCE && Math.abs(d - dz) > dz * SPACING_TOLERANCE) continue;
       // Four times the angle makes directions 90° apart the same, so they can be averaged.
       const four = 4 * Math.atan2(b.z - a.z, b.x - a.x);
